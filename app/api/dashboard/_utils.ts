@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { logAuditTrail } from "@/lib/auditLogger";
 
 /* ============================================================

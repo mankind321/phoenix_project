@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { Storage } from "@google-cloud/storage";
 import bcrypt from "bcrypt";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { logAuditTrail } from "@/lib/auditLogger";
 
 // ============================================================

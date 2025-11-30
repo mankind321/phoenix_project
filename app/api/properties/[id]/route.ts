@@ -8,7 +8,7 @@ process.env.GAX_GCN_DISALLOW_IPv6 = "true";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { logAuditTrail } from "@/lib/auditLogger";
 import { Storage } from "@google-cloud/storage";
 
