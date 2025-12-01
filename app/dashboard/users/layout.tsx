@@ -18,6 +18,9 @@ export default function AuditTrailLayout({ children }: AuditTrailLayoutProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
 
+  // ----------------------------------------------------------
+  // SESSION EXPIRED HANDLING
+  // ----------------------------------------------------------
   useEffect(() => {
     const isLoggingOut =
       typeof window !== "undefined" &&
@@ -33,18 +36,73 @@ export default function AuditTrailLayout({ children }: AuditTrailLayoutProps) {
     }
   }, [status, router]);
 
+  // ----------------------------------------------------------
+  // AUTO-OFFLINE PRESENCE TRACKING
+  // ----------------------------------------------------------
+  useEffect(() => {
+    if (!session?.user) return;
+
+    const { accountId, username } = session.user;
+
+    const markOffline = async () => {
+      try {
+        await fetch("/api/auth/update-status-offline", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accountId, username }),
+        });
+      } catch (err) {
+        console.warn("⚠ Failed to update offline status:", err);
+      }
+    };
+
+    // 1️⃣ If session becomes unauthenticated → mark offline
+    if (["unauthenticated"].includes(status)) {
+      markOffline();
+    }
+
+    // 2️⃣ Browser/tab close → mark offline
+    window.addEventListener("beforeunload", markOffline);
+
+    // 3️⃣ Auto-offline after 10 minutes inactivity
+    let inactivityTimer: ReturnType<typeof setTimeout>;
+
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        markOffline();
+      }, 10 * 60 * 1000); // 10 minutes
+    };
+
+    const events = ["mousemove", "keydown", "scroll", "click"];
+    events.forEach((ev) => window.addEventListener(ev, resetTimer));
+    resetTimer();
+
+    return () => {
+      window.removeEventListener("beforeunload", markOffline);
+      events.forEach((ev) => window.removeEventListener(ev, resetTimer));
+      clearTimeout(inactivityTimer);
+    };
+  }, [session, status]);
+
+  // ----------------------------------------------------------
+  // LOADING STATE
+  // ----------------------------------------------------------
   if (status === "loading") {
     console.log("Refreshing session silently...");
   }
 
   if (!session?.user) return null;
 
+  // ----------------------------------------------------------
+  // RENDER LAYOUT
+  // ----------------------------------------------------------
   return (
     <div className="min-h-screen bg-white">
       <AutoLogout />
 
       {/* FIXED SIDEBAR */}
-      <div className="w-64 h-screen fixed left-0 top-0 border-r border-gray-200 bg-white overflow-y-auto">
+      <div className="sidebar-scroll w-64 h-screen fixed left-0 top-0 border-r border-gray-200 bg-white">
         {session.user.role === "Admin" ? (
           <TopHeaderAdmin />
         ) : session.user.role === "Manager" ? (
@@ -54,10 +112,8 @@ export default function AuditTrailLayout({ children }: AuditTrailLayoutProps) {
         )}
       </div>
 
-      {/* MAIN CONTENT (NO CARD) */}
-      <main className="ml-64 p-6 bg-white">
-        {children}
-      </main>
+      {/* MAIN CONTENT */}
+      <main className="ml-64 p-6 bg-white">{children}</main>
     </div>
   );
 }

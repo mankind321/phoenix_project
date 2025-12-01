@@ -87,11 +87,28 @@ export const TopHeaderAdmin: React.FC = () => {
     .toUpperCase();
 
   // --------------------------------------------------
-  // Logout Handler
+  // Logout Handler (UPDATED)
   // --------------------------------------------------
-  const handleLogout = () => {
-    sessionStorage.setItem("isLoggingOut", "true");
-    signOut({ redirect: false }).then(() => router.replace("/login"));
+  const handleLogout = async () => {
+    try {
+      // 1️⃣ Call backend API to mark user offline
+      await fetch("/api/auth/update-status-offline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accountId: session?.user?.accountId,
+          username: session?.user?.username,
+        }),
+      });
+
+      // 2️⃣ Continue with logout
+      sessionStorage.setItem("isLoggingOut", "true");
+      await signOut({ redirect: false });
+
+      router.replace("/login");
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
   };
 
   // --------------------------------------------------
@@ -109,7 +126,7 @@ export const TopHeaderAdmin: React.FC = () => {
   ];
 
   return (
-    <aside className="h-screen w-64 bg-white border-r border-gray-200 flex flex-col">
+    <aside className="sidebar-scroll h-screen w-64 bg-white border-r border-gray-200 flex flex-col">
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-gray-200">
         <div className="w-12 h-12 bg-blue-600 rounded-md flex items-center justify-center">
@@ -117,9 +134,7 @@ export const TopHeaderAdmin: React.FC = () => {
         </div>
         <div className="flex flex-col leading-tight">
           <h1 className="text-lg font-semibold text-black">Phoenix Project</h1>
-          <span className="text-xs text-gray-600">
-            Real Property Management
-          </span>
+          <span className="text-xs text-gray-600">Real Property Management</span>
         </div>
       </div>
 
@@ -148,7 +163,7 @@ export const TopHeaderAdmin: React.FC = () => {
         </ul>
       </nav>
 
-      {/* User Profile / Bottom Zone */}
+      {/* User Profile Bottom Section */}
       <div className="border-t border-gray-200 p-4">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

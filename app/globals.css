@@ -199,3 +199,19 @@ html {
   height: 100vh !important;
   padding: 0 !important;
 }
+
+/* Hide scrollbar for Chrome, Safari and Edge */
+.sidebar-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for Firefox */
+.sidebar-scroll {
+  scrollbar-width: none;
+}
+
+/* Keep scrolling functional */
+.sidebar-scroll {
+  overflow-y: auto;
+}
+

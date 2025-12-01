@@ -37,6 +37,9 @@ export const authOptions: AuthOptions = {
           throw new Error("Missing username or password");
         }
 
+        // ------------------------------------------------------------
+        // 1️⃣ FETCH USER RECORD
+        // ------------------------------------------------------------
         const { data: userRecord } = await supabase
           .from("useraccountaccess")
           .select(
@@ -59,6 +62,9 @@ export const authOptions: AuthOptions = {
           throw new Error("Invalid username or password");
         }
 
+        // ------------------------------------------------------------
+        // 2️⃣ CHECK IF PASSWORD IS CORRECT
+        // ------------------------------------------------------------
         const validPass = await bcrypt.compare(
           credentials.password,
           userRecord.password_hash
@@ -78,6 +84,34 @@ export const authOptions: AuthOptions = {
           throw new Error("Invalid username or password");
         }
 
+        // ------------------------------------------------------------
+        // 3️⃣ CHECK ACCOUNT STATUS (NEW)
+        // ------------------------------------------------------------
+        const { data: statusRow } = await supabase
+          .from("accounts_status")
+          .select("account_status")
+          .eq("account_id", userRecord.accountid)
+          .eq("username", userRecord.username)
+          .maybeSingle();
+
+        if (statusRow?.account_status === "online") {
+          await logAuditTrail({
+            userId: userRecord.userid,
+            username: userRecord.username,
+            role: userRecord.role,
+            actionType: "LOGIN_FAILED",
+            tableName: "accounts_status",
+            description: "Rejected login — user already logged-in",
+            ipAddress: ip,
+            userAgent,
+          });
+
+          throw new Error("Account is already logged in on another device.");
+        }
+
+        // ------------------------------------------------------------
+        // 4️⃣ LOGIN SUCCESS
+        // ------------------------------------------------------------
         await logAuditTrail({
           userId: userRecord.userid,
           username: userRecord.username,
@@ -89,8 +123,21 @@ export const authOptions: AuthOptions = {
           userAgent,
         });
 
+        // ------------------------------------------------------------
+        // 5️⃣ UPDATE ACCOUNT STATUS → ONLINE
+        // ------------------------------------------------------------
+        await supabase
+          .from("accounts_status")
+          .update({ account_status: "online" })
+          .eq("account_id", userRecord.accountid)
+          .eq("username", userRecord.username);
+
+        // ------------------------------------------------------------
+        // 6️⃣ CLEAN PROFILE PATH (UNCHANGED)
+        // ------------------------------------------------------------
         let cleanPath: string | undefined =
           userRecord.profile_image_url ?? undefined;
+
         if (cleanPath?.startsWith("http")) {
           try {
             const url = new URL(cleanPath);
@@ -100,6 +147,9 @@ export const authOptions: AuthOptions = {
           }
         }
 
+        // ------------------------------------------------------------
+        // 7️⃣ RETURN SESSION PAYLOAD
+        // ------------------------------------------------------------
         return {
           id: userRecord.userid,
           username: userRecord.username,

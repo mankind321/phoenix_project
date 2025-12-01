@@ -96,6 +96,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 // ============================================================
 // 📝 UPDATE USER — ADMIN ONLY
 // ============================================================
+// ============================================================
+// 📝 UPDATE USER — ADMIN ONLY
+// ============================================================
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -161,7 +164,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       newPasswordHash = await bcrypt.hash(accountData.password, 10);
     }
 
-    // Update user profile
+    // ============================================================
+    // 🏷️ UPDATE USER PROFILE (usersacc)
+    // ============================================================
     await supabase
       .from("usersacc")
       .update({
@@ -182,7 +187,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       })
       .eq("userid", id);
 
-    // Update account details
+    // ============================================================
+    // 🔐 UPDATE ACCOUNT INFO (accounts)
+    // ============================================================
     const accountUpdate: any = {
       username: accountData.username,
       role: accountData.role,
@@ -196,7 +203,25 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     await supabase.from("accounts").update(accountUpdate).eq("user_id", id);
 
-    // Audit
+    // ============================================================
+    // 🔄 SYNC USERNAME TO accounts_status
+    // ============================================================
+    const { data: acc } = await supabase
+      .from("accounts")
+      .select("accountid")
+      .eq("user_id", id)
+      .single();
+
+    if (acc?.accountid) {
+      await supabase
+        .from("accounts_status")
+        .update({ username: accountData.username })
+        .eq("account_id", acc.accountid);
+    }
+
+    // ============================================================
+    // 📝 AUDIT LOG
+    // ============================================================
     await logAuditTrail({
       userId: session.user.id,
       username: session.user.username,
@@ -216,6 +241,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }
+
 
 // ============================================================
 // 🗑 DELETE USER — ADMIN ONLY
