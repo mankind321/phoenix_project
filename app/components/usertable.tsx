@@ -232,14 +232,6 @@ export default function UserTable() {
               >
                 <Trash2 size={15} />
               </Button>
-
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => console.log("Reset password for:", user.userid)}
-              >
-                <RotateCcw size={15} />
-              </Button>
             </div>
           );
         },

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
@@ -15,7 +16,7 @@ import {
   Search,
   Download,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,13 @@ import {
   ColumnDef,
 } from "@tanstack/react-table";
 
+const documentTypes = [
+  "Lease Contract",
+  "Property Brochure",
+  "Image",
+  "Other Documents",
+];
+
 export default function DocumentUploadSection() {
   const { data: session } = useSession();
 
@@ -56,6 +64,11 @@ export default function DocumentUploadSection() {
   const pageSize = 10;
   const [total, setTotal] = useState(0);
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const [docType, setDocType] = useState("");
+
+  // Disable uploading if user already has 10 documents stored
+  const reachedLimit = files.length >= 10;
 
   const maxFiles = 10;
 
@@ -77,7 +90,9 @@ export default function DocumentUploadSection() {
     const valid = selected.filter((f) => allowedMimeTypes.includes(f.type));
 
     if (valid.length !== selected.length) {
-      toast.warning("Only TXT, DOC, DOCX, PDF, XLS, XLSX, and CSV files are allowed.");
+      toast.warning(
+        "Only TXT, DOC, DOCX, PDF, XLS, XLSX, and CSV files are allowed."
+      );
     }
 
     const total = [...files, ...valid];
@@ -106,6 +121,10 @@ export default function DocumentUploadSection() {
   async function handleUpload() {
     if (!session) return toast.error("You must be logged in to upload.");
     if (files.length === 0) return toast.warning("No files selected");
+    if (!docType) {
+      toast.error("Please select a document type before uploading.");
+      return;
+    }
 
     setUploading(true);
     let completed = 0;
@@ -115,34 +134,26 @@ export default function DocumentUploadSection() {
 
     for (const file of files) {
       try {
-        const res = await fetch(`/api/upload/document?name=${encodeURIComponent(file.name)}`);
-        const data = await res.json();
-        if (!data.success) throw new Error("Failed to get upload URL");
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("document_type", docType); // ✅ Correct field name for BE + Dispatcher
 
-        const uploadRes = await fetch(data.uploadUrl, {
-          method: "PUT",
-          body: file,
-        });
-
-        if (!uploadRes.ok) throw new Error("Upload failed");
-
-        await fetch("/api/upload/document/confirm", {
+        const res = await fetch("/api/upload/document", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: file.name,
-            objectName: data.objectName,
-            fileUrl: `gs://${process.env.NEXT_PUBLIC_GCP_BUCKET}/${data.objectName}`,
-            userId: session.user.id,
-            uploadedByUserName: session.user.username,
-          }),
+          body: formData,
         });
+
+        if (!res.ok) {
+          failed.push(file.name);
+        }
       } catch (err) {
         failed.push(file.name);
       }
 
       completed++;
-      toast.message(`Uploading ${completed} of ${files.length}...`, { id: toastId });
+      toast.message(`Uploading ${completed} of ${files.length}...`, {
+        id: toastId,
+      });
     }
 
     toast.dismiss(toastId);
@@ -150,11 +161,9 @@ export default function DocumentUploadSection() {
     setFiles([]);
     loadDocuments();
 
-    if (failed.length > 0) {
-      toast.error(`Failed: ${failed.join(", ")}`);
-    } else {
-      toast.success("Upload complete!");
-    }
+    failed.length > 0
+      ? toast.error(`Failed: ${failed.join(", ")}`)
+      : toast.success("Upload complete!");
   }
 
   // ===============================
@@ -166,7 +175,9 @@ export default function DocumentUploadSection() {
 
     try {
       const res = await fetch(
-        `/api/document?search=${encodeURIComponent(search)}&page=${page}&pageSize=${pageSize}`
+        `/api/document?search=${encodeURIComponent(
+          search
+        )}&page=${page}&pageSize=${pageSize}`
       );
 
       const data = await res.json();
@@ -195,7 +206,9 @@ export default function DocumentUploadSection() {
 
   const handleDownload = useCallback((url: string) => {
     const clean = normalizeGsUrl(url);
-    window.location.href = `/api/gcp/download?path=${encodeURIComponent(clean)}`;
+    window.location.href = `/api/gcp/download?path=${encodeURIComponent(
+      clean
+    )}`;
   }, []);
 
   // ===============================
@@ -304,17 +317,21 @@ export default function DocumentUploadSection() {
   // ===============================
   // 📌 UI (Upload + List)
   // ===============================
-
+  console.log("session:", session?.user);
+  console.log("reachedLinit:", reachedLimit, total);
   return (
     <div className="w-11/12 mx-auto mt-6 space-y-6">
-
       {/* HEADER */}
       <div>
         <div className="flex items-center gap-2">
           <FileText className="w-6 h-6 text-gray-700" />
-          <h2 className="text-xl font-semibold text-gray-800">Document Management</h2>
+          <h2 className="text-xl font-semibold text-gray-800">
+            Document Management
+          </h2>
         </div>
-        <p className="text-sm text-gray-500">Upload, Search and Filter Documents.</p>
+        <p className="text-sm text-gray-500">
+          Upload, Search and Filter Documents.
+        </p>
       </div>
 
       <Tabs defaultValue="upload" className="w-full">
@@ -330,21 +347,55 @@ export default function DocumentUploadSection() {
           <div className="space-y-6">
             {!session && (
               <p className="text-red-500 text-sm">
-                ⚠️ You must be logged in to upload documents.
+                You must be logged in to upload documents.
               </p>
             )}
 
+            {/* Document Type Dropdown */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mr-3">
+                Document Type <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={docType}
+                onChange={(e) => setDocType(e.target.value)}
+                className="w-100 mt-1 p-2 border rounded-md"
+                disabled={!session?.user || reachedLimit}
+              >
+                <option value="">Select Document Type</option>
+                {documentTypes.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+
+              {!docType && session?.user && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Please select a document type to enable file upload.
+                </p>
+              )}
+            </div>
+
             {/* Dropzone */}
             <div
-              onDrop={handleDrop}
-              onDragOver={(e) => e.preventDefault()}
-              className={`border-2 border-dashed rounded-lg py-10 px-6 text-center cursor-pointer 
-                ${session ? "hover:border-blue-400 border-gray-300" : "opacity-50 border-gray-200"}`}
+              onDrop={!docType || reachedLimit ? undefined : handleDrop}
+              onDragOver={(e) => docType && !reachedLimit && e.preventDefault()}
+              className={`border-2 border-dashed rounded-lg py-10 px-6 text-center
+        ${
+          !docType || reachedLimit
+            ? "opacity-50 border-gray-300 cursor-not-allowed"
+            : "cursor-pointer hover:border-blue-400 border-gray-300"
+        }`}
             >
               <Upload className="h-10 w-10 text-gray-400 mb-3" />
               <h3 className="text-base font-medium">Upload Documents</h3>
               <p className="text-sm text-gray-500">
-                Drag & drop files or click to browse
+                {!docType
+                  ? "Select a document type first."
+                  : reachedLimit
+                  ? "Maximum of 10 uploaded documents reached."
+                  : "Drag & drop files or click to browse"}
               </p>
 
               <input
@@ -353,17 +404,25 @@ export default function DocumentUploadSection() {
                 id="fileUpload"
                 multiple
                 onChange={handleFileInput}
-                disabled={!session}
+                disabled={!session?.user || reachedLimit || !docType}
               />
 
-              <Button asChild disabled={!session} className="mt-4 bg-blue-700 hover:bg-blue-400">
-                <label htmlFor="fileUpload" className="flex gap-2 cursor-pointer">
+              <Button
+                asChild
+                disabled={!session?.user || reachedLimit || !docType}
+                className="mt-4 bg-blue-700 hover:bg-blue-400"
+              >
+                <label
+                  htmlFor="fileUpload"
+                  className="flex gap-2 cursor-pointer"
+                >
                   <Paperclip />
                   Choose Files
                 </label>
               </Button>
             </div>
 
+            {/* Selected Files Preview */}
             {files.length > 0 && (
               <ul className="space-y-2 mt-4">
                 {files.map((file) => (
@@ -387,9 +446,10 @@ export default function DocumentUploadSection() {
               </ul>
             )}
 
+            {/* Upload Button */}
             {files.length > 0 && (
               <div className="flex justify-end">
-                <Button disabled={uploading || !session} onClick={handleUpload}>
+                <Button onClick={handleUpload} disabled={uploading || !docType}>
                   <CloudUpload className="mr-2" />
                   {uploading ? "Uploading..." : "Upload"}
                 </Button>
@@ -425,7 +485,10 @@ export default function DocumentUploadSection() {
                   <TableRow key={group.id}>
                     {group.headers.map((header) => (
                       <TableHead key={header.id}>
-                        {flexRender(header.column.columnDef.header, header.getContext())}
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                       </TableHead>
                     ))}
                   </TableRow>
@@ -435,7 +498,10 @@ export default function DocumentUploadSection() {
               <TableBody>
                 {loadingList ? (
                   <TableRow>
-                    <TableCell colSpan={columns.length} className="py-10 text-center">
+                    <TableCell
+                      colSpan={columns.length}
+                      className="py-10 text-center"
+                    >
                       Loading…
                     </TableCell>
                   </TableRow>
@@ -444,14 +510,20 @@ export default function DocumentUploadSection() {
                     <TableRow key={row.id}>
                       {row.getVisibleCells().map((cell) => (
                         <TableCell key={cell.id}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
                         </TableCell>
                       ))}
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={columns.length} className="py-6 text-center">
+                    <TableCell
+                      colSpan={columns.length}
+                      className="py-6 text-center"
+                    >
                       No documents found.
                     </TableCell>
                   </TableRow>
@@ -463,7 +535,6 @@ export default function DocumentUploadSection() {
             <Pagination />
           </div>
         </TabsContent>
-
       </Tabs>
     </div>
   );

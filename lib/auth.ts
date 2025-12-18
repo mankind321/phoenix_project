@@ -4,6 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcrypt";
 import { logAuditTrail } from "@/lib/auditLogger";
+import { randomUUID } from "crypto";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -103,7 +104,6 @@ export const authOptions: AuthOptions = {
           .maybeSingle();
 
         if (statusRow?.account_status === "online") {
-          // UNIQUE ERROR CODE (useful for toast messages)
           const err = new Error("ACCOUNT_ALREADY_LOGGED_IN");
           (err as any).code = "ACCOUNT_ALREADY_LOGGED_IN";
           throw err;
@@ -148,7 +148,12 @@ export const authOptions: AuthOptions = {
         }
 
         // ----------------------------------------
-        // 8️⃣ Return session payload
+        // 8️⃣ Create session_id here
+        // ----------------------------------------
+        const session_id = randomUUID();
+
+        // ----------------------------------------
+        // 9️⃣ Return user object including session_id
         // ----------------------------------------
         return {
           id: userRecord.userid,
@@ -161,6 +166,7 @@ export const authOptions: AuthOptions = {
           profileImageUrl: cleanPath,
           accountId: userRecord.accountid,
           managerId: userRecord.manager_id,
+          session_id, // << NEW
         };
       },
     }),
@@ -169,20 +175,26 @@ export const authOptions: AuthOptions = {
   session: { strategy: "jwt" },
 
   callbacks: {
+    // Save user + session_id to JWT
     async jwt({ token, user }) {
-      if (user) token.user = user;
+      if (user) {
+        token.user = user;
+        token.session_id = (user as any).session_id; // << NEW
+      }
       return token;
     },
 
+    // Expose session_id to FE
     async session({ session, token }) {
       session.user = token.user as any;
+      session.session_id = token.session_id; // << NEW
       return session;
     },
   },
 
   pages: { 
     signIn: "/login",
-    error: "/login" // important for receiving error messages
+    error: "/login"
   },
 
   secret: process.env.NEXTAUTH_SECRET,

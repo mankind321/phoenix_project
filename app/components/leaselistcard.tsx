@@ -115,7 +115,7 @@ export default function LeaseListPage() {
       <div>
         <div className="flex items-center space-x-2 mb-2">
           <FileText className="w-6 h-6 text-gray-700" />
-          <h2 className="text-xl font-semibold text-gray-800">Lease Directory</h2>
+          <h2 className="text-xl font-semibold text-gray-800">Tenant Directory</h2>
         </div>
 
         <p className="text-sm text-gray-500 mb-4">

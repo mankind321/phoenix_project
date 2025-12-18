@@ -6,8 +6,30 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, MapPin, ChevronLeft, ChevronRight, Building } from "lucide-react";
+import {
+  Loader2,
+  MapPin,
+  ChevronLeft,
+  ChevronRight,
+  Building,
+  Search,
+} from "lucide-react";
 import Image from "next/image";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectItem,
+  SelectContent,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 
 import {
   GoogleMap,
@@ -16,6 +38,7 @@ import {
   InfoWindow,
   useJsApiLoader,
 } from "@react-google-maps/api";
+import { Can } from "./can";
 
 interface Property {
   property_id: string;
@@ -63,7 +86,7 @@ function isAiQueryFrontend(text: string): boolean {
     "m ",
     "meter",
     "mile",
-    "radius"
+    "radius",
   ];
 
   if (aiKeywords.some((k) => t.includes(k))) return true;
@@ -90,8 +113,23 @@ export default function PropertyCardTable() {
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const router = useRouter();
 
+  const [statusModalOpen, setStatusModalOpen] = React.useState(false);
+  const [savingStatus, setSavingStatus] = React.useState(false);
+  const [selectedStatusProperty, setSelectedStatusProperty] =
+    React.useState<Property | null>(null);
+  const [newStatus, setNewStatus] = React.useState<string>("");
+
+  // Dropdown options (adjust these)
+  const realPropertyStatuses = [
+    "Available",
+    "Occupied",
+    "Under Maintenance",
+    "Not Available",
+  ];
+
   // Map state
-  const [selectedProperty, setSelectedProperty] = React.useState<Property | null>(null);
+  const [selectedProperty, setSelectedProperty] =
+    React.useState<Property | null>(null);
   const mapRef = React.useRef<google.maps.Map | null>(null);
   const itemRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -103,8 +141,10 @@ export default function PropertyCardTable() {
     const withCoords = data.filter((p) => p.latitude && p.longitude);
     if (!withCoords.length) return { lat: 39.5, lng: -98.35 };
 
-    const lat = withCoords.reduce((sum, p) => sum + p.latitude!, 0) / withCoords.length;
-    const lng = withCoords.reduce((sum, p) => sum + p.longitude!, 0) / withCoords.length;
+    const lat =
+      withCoords.reduce((sum, p) => sum + p.latitude!, 0) / withCoords.length;
+    const lng =
+      withCoords.reduce((sum, p) => sum + p.longitude!, 0) / withCoords.length;
 
     return { lat, lng };
   }, [data]);
@@ -150,6 +190,27 @@ export default function PropertyCardTable() {
     fetchData();
   }, [page, limit, search, sortField, sortOrder]);
 
+  const handleOpenStatusDialog = async (p: Property) => {
+    try {
+      const res = await fetch(`/api/lease/active?property_id=${p.property_id}`);
+      const json = await res.json();
+
+      if (json.activeLease) {
+        toast.error(
+          "This property has an active lease. Status update not allowed."
+        );
+        return;
+      }
+
+      setSelectedStatusProperty(p);
+      setNewStatus(p.status ?? "");
+      setStatusModalOpen(true);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to verify lease status.");
+    }
+  };
+
   // Trigger search manually
   const triggerSearch = () => {
     setSearch(searchInput.trim());
@@ -175,6 +236,46 @@ export default function PropertyCardTable() {
     router.push(`/dashboard/properties/${p.property_id}`);
   };
 
+  const handleSaveStatus = async () => {
+    if (!selectedStatusProperty) return;
+    if (!newStatus) {
+      toast.error("Please select a status.");
+      return;
+    }
+
+    try {
+      setSavingStatus(true); // 🟦 start loading
+
+      const res = await fetch(`/api/properties/update-status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          property_id: selectedStatusProperty.property_id,
+          status: newStatus,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        toast.error(json.error || "Failed to update status.");
+        return;
+      }
+
+      toast.success("Status updated successfully.");
+
+      // Refresh UI
+      setStatusModalOpen(false);
+      setPage(1);
+      triggerSearch();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error updating status.");
+    } finally {
+      setSavingStatus(false); // 🟩 stop loading
+    }
+  };
+
   const onMapLoad = (map: google.maps.Map) => {
     mapRef.current = map;
 
@@ -194,7 +295,6 @@ export default function PropertyCardTable() {
   // -----------------------------
   return (
     <div className="w-11/12 mx-auto mt-6 space-y-4">
-
       {/* HEADER */}
       <div className="flex flex-col lg:flex-row justify-between items-center bg-white">
         <div>
@@ -202,25 +302,28 @@ export default function PropertyCardTable() {
             <Building className="w-6 h-6 text-gray-700" />
             <h2 className="text-xl font-semibold">Property Listings</h2>
           </div>
-          <p className="text-sm text-gray-500">View and search available properties.</p>
+          <p className="text-sm text-gray-500">
+            View and search available properties.
+          </p>
         </div>
 
         {/* SEARCH BAR */}
         <div className="flex gap-3 items-center">
           <Input
-            placeholder="Search properties…"
+            placeholder="Find properties by name, city, or even natural language…"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") triggerSearch();
             }}
-            className="w-[400px] text-base"
+            className="w-[700px] text-base"
           />
 
           <Button
             onClick={triggerSearch}
-            className="bg-blue-700 hover:bg-blue-500 text-white px-6"
+            className="bg-blue-700 hover:bg-blue-500 text-white px-6 mt-2"
           >
+            <Search />
             Search
           </Button>
         </div>
@@ -228,10 +331,8 @@ export default function PropertyCardTable() {
 
       {/* MAIN LAYOUT */}
       <div className="flex h-[650px] border rounded-md overflow-hidden bg-white">
-
         {/* SIDEBAR */}
         <div className="relative w-full md:w-[35%] lg:w-[32%] border-r">
-
           <div className="overflow-y-auto h-[calc(650px-60px)]">
             <div className="px-4 py-2 border-b text-sm bg-gray-50">
               {isLoading ? "Loading…" : `${total} results`}
@@ -243,7 +344,8 @@ export default function PropertyCardTable() {
               </div>
             ) : (
               data.map((p) => {
-                const isActive = selectedProperty?.property_id === p.property_id;
+                const isActive =
+                  selectedProperty?.property_id === p.property_id;
 
                 return (
                   <div
@@ -266,9 +368,13 @@ export default function PropertyCardTable() {
 
                         <div className="text-gray-600 mt-1 flex items-center gap-1">
                           <MapPin size={12} />
-                          {([p.address, p.city, p.state].every((v) => !v)
-                            ? "—"
-                            : [p.address, p.city, p.state].join(", "))}
+
+                          {(() => {
+                            const fullAddress = [p.address, p.city, p.state]
+                              .filter((v) => v && v.trim() !== "")
+                              .join(", ");
+                            return fullAddress || "—";
+                          })()}
                         </div>
 
                         <div className="flex justify-between mt-2">
@@ -293,7 +399,10 @@ export default function PropertyCardTable() {
 
                       <div className="w-24 h-20 relative rounded-md overflow-hidden">
                         <Image
-                          src={p.file_url ?? "https://placehold.co/300x200/png?text=No+Image"}
+                          src={
+                            p.file_url ??
+                            "https://placehold.co/300x200/png?text=No+Image"
+                          }
                           alt={p.name}
                           fill
                           className="object-cover"
@@ -301,16 +410,31 @@ export default function PropertyCardTable() {
                       </div>
                     </div>
 
-                    <Button
-                      size="sm"
-                      className="w-full bg-blue-700 hover:bg-blue-500 text-white"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleViewDetails(p);
-                      }}
-                    >
-                      View Details
-                    </Button>
+                    <div className="flex flex-row gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-blue-700 hover:bg-blue-500 text-white"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(p);
+                        }}
+                      >
+                        View Details
+                      </Button>
+                      <Can role={["Admin","Manager"]}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 border-blue-700 text-blue-700 hover:bg-blue-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenStatusDialog(p);
+                          }}
+                        >
+                          Update Status
+                        </Button>
+                      </Can>
+                    </div>
                   </div>
                 );
               })
@@ -379,38 +503,94 @@ export default function PropertyCardTable() {
                 )}
               </MarkerClusterer>
 
-              {selectedProperty && selectedProperty.latitude && selectedProperty.longitude && (
-                <InfoWindow
-                  position={{
-                    lat: selectedProperty.latitude,
-                    lng: selectedProperty.longitude,
-                  }}
-                  onCloseClick={() => setSelectedProperty(null)}
-                >
-                  <div className="max-w-[220px]">
-                    <div className="text-[10px] font-semibold text-blue-700 uppercase mb-1">
-                      {selectedProperty.status ?? "Status"}
+              {selectedProperty &&
+                selectedProperty.latitude &&
+                selectedProperty.longitude && (
+                  <InfoWindow
+                    position={{
+                      lat: selectedProperty.latitude,
+                      lng: selectedProperty.longitude,
+                    }}
+                    onCloseClick={() => setSelectedProperty(null)}
+                  >
+                    <div className="max-w-[220px]">
+                      <div className="text-[10px] font-semibold text-blue-700 uppercase mb-1">
+                        {selectedProperty.status ?? "Status"}
+                      </div>
+                      <div className="font-semibold text-sm mb-1">
+                        {selectedProperty.name}
+                      </div>
+                      <div className="text-xs text-gray-600 mb-2">
+                        {(() => {
+                          const fullAddress = [
+                            selectedProperty.address,
+                            selectedProperty.city,
+                            selectedProperty.state,
+                          ]
+                            .filter((v) => v && v.trim() !== "")
+                            .join(", ");
+
+                          return fullAddress || "—";
+                        })()}
+                      </div>
+
+                      <Button
+                        size="sm"
+                        className="w-full bg-blue-700 hover:bg-blue-500 text-white"
+                        onClick={() => handleViewDetails(selectedProperty)}
+                      >
+                        View Details
+                      </Button>
                     </div>
-                    <div className="font-semibold text-sm mb-1">{selectedProperty.name}</div>
-                    <div className="text-xs text-gray-600 mb-2">
-                      {`${selectedProperty.address ?? ""}, ${selectedProperty.city ?? ""}, ${
-                        selectedProperty.state ?? ""
-                      }`}
-                    </div>
-                    <Button
-                      size="sm"
-                      className="w-full bg-blue-700 hover:bg-blue-500 text-white"
-                      onClick={() => handleViewDetails(selectedProperty)}
-                    >
-                      View Details
-                    </Button>
-                  </div>
-                </InfoWindow>
-              )}
+                  </InfoWindow>
+                )}
             </GoogleMap>
           )}
         </div>
       </div>
+      <Dialog open={statusModalOpen} onOpenChange={setStatusModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Update Property Status</DialogTitle>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-3">
+            <p className="text-sm text-gray-600">
+              Property:{" "}
+              <span className="font-semibold">
+                {selectedStatusProperty?.name}
+              </span>
+            </p>
+
+            <Select value={newStatus} onValueChange={setNewStatus}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+
+              <SelectContent>
+                {realPropertyStatuses.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStatusModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={savingStatus}
+              onClick={handleSaveStatus}
+              className="bg-blue-700 hover:bg-blue-500 text-white disabled:opacity-50"
+            >
+              {savingStatus ? "Saving…" : "Save Status"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

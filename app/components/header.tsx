@@ -118,8 +118,9 @@ export const TopHeader: React.FC = () => {
   const navItems = [
     { label: "Dashboard", path: "/dashboard/main", icon: <CircleGauge className="w-4 h-4" /> },
     { label: "Properties", path: "/dashboard/properties", icon: <Home className="w-4 h-4" /> },
-    { label: "Leases", path: "/dashboard/leases", icon: <ClipboardList className="w-4 h-4" /> },
-    { label: "Contact", path: "/dashboard/contact", icon: <Contact className="w-4 h-4" /> },
+    { label: "Tenants", path: "/dashboard/leases", icon: <ClipboardList className="w-4 h-4" /> },
+    { label: "Brokers", path: "/dashboard/contact", icon: <Contact className="w-4 h-4" /> },
+    { label: "User Brokers", path: "/dashboard/owner-contact", icon: <Contact className="w-4 h-4" /> },
     { label: "Documents", path: "/dashboard/documents", icon: <FileText className="w-4 h-4" /> },
     { label: "Audit Trail", path: "/dashboard/audit-trail", icon: <Activity className="w-4 h-4" /> },
   ];

@@ -109,7 +109,6 @@ export default function PropertyViewPage({
 
   return (
     <div className="w-11/12 mx-auto mt-10 space-y-10">
-
       {/* PAGE TITLE */}
       <div className="text-center mb-5">
         <h1 className="text-3xl font-semibold text-gray-900 flex items-center justify-center gap-2">
@@ -119,7 +118,7 @@ export default function PropertyViewPage({
       </div>
 
       {/* =======================================================
-                IMAGES (CAROUSEL + FULL RES ZOOM)
+          IMAGES (CAROUSEL + FULL RES ZOOM) — LIMITED TO 3
       ======================================================= */}
       {documents.length === 0 ? (
         <div className="relative w-full max-w-3xl mx-auto h-60 md:h-80">
@@ -137,11 +136,10 @@ export default function PropertyViewPage({
       ) : (
         <Carousel className="w-full max-w-3xl mx-auto">
           <CarouselContent>
-            {documents.map((doc, idx) => (
+            {documents.slice(0, 3).map((doc, idx) => (
               <CarouselItem key={idx}>
                 <div className="p-1">
                   <div className="relative w-full h-60 md:h-80 overflow-hidden">
-
                     <Dialog>
                       <DialogTrigger asChild>
                         <Image
@@ -157,10 +155,10 @@ export default function PropertyViewPage({
                       </DialogTrigger>
 
                       {/* FULLSCREEN ZOOM */}
-                      <DialogContent
-                        className="bg-black rounded-lg p-2 w-[75vw] max-h-[75vh] max-w-none flex items-center justify-center"
-                      >
-                        <DialogTitle className="sr-only">Image Preview</DialogTitle>
+                      <DialogContent className="bg-black rounded-lg p-2 w-[75vw] max-h-[75vh] max-w-none flex items-center justify-center">
+                        <DialogTitle className="sr-only">
+                          Image Preview
+                        </DialogTitle>
 
                         <div className="max-w-full max-h-full overflow-auto">
                           <Image
@@ -173,9 +171,7 @@ export default function PropertyViewPage({
                           />
                         </div>
                       </DialogContent>
-
                     </Dialog>
-
                   </div>
                 </div>
               </CarouselItem>
@@ -230,7 +226,7 @@ export default function PropertyViewPage({
       </InfoSection>
 
       {/* LEASES */}
-      <InfoSection icon={<Users />} title="Leases">
+      <InfoSection icon={<Users />} title="Tenant">
         <Tabs defaultValue="active" className="w-full">
           <TabsList className="mb-4">
             <TabsTrigger value="active">Active Leases</TabsTrigger>
@@ -306,9 +302,11 @@ export default function PropertyViewPage({
       </InfoSection>
 
       {/* CONTACTS */}
-      <InfoSection icon={<Users />} title="Related Contacts">
+      <InfoSection icon={<Users />} title="Brokers">
         {contacts.length === 0 ? (
-          <p className="text-gray-500">No contacts assigned to this property.</p>
+          <p className="text-gray-500">
+            No contacts assigned to this property.
+          </p>
         ) : (
           <Table>
             <TableHeader>
@@ -339,7 +337,6 @@ export default function PropertyViewPage({
           </Table>
         )}
       </InfoSection>
-
 
       {/* COMMENTS */}
       <InfoSection icon={<ClipboardList />} title="Comments">

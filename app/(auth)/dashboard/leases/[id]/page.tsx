@@ -107,11 +107,8 @@ export default function LeaseViewPage({
       <div className="text-center space-y-2 mb-5">
         <h1 className="text-3xl font-semibold text-gray-900 flex items-center justify-center gap-2">
           <FileText className="w-7 h-7 text-blue-600" />
-          Lease Information
+          Tenant Contract Information
         </h1>
-        <p className="text-gray-500 text-sm">
-          Lease ID: <span className="font-medium">{leaseId}</span>
-        </p>
       </div>
 
       {/* ========== CONTENT SECTIONS ========== */}
@@ -157,9 +154,9 @@ export default function LeaseViewPage({
         </InfoSection>
 
         {/* CONTACTS */}
-      <InfoSection icon={<Users />} title="Related Contacts">
+      <InfoSection icon={<Users />} title="Brokers">
         {contacts.length === 0 ? (
-          <p className="text-gray-500">No contacts assigned to this property.</p>
+          <p className="text-gray-500">No Brokers assigned to this property.</p>
         ) : (
           <Table>
             <TableHeader>

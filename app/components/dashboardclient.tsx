@@ -13,14 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import KPIGroup from "../components/dashboards/kpigroup";
-import IncomeTrendChart from "../components/dashboards/incometrendchart";
-import LeaseExpirationChart from "../components/dashboards/leaseexpirationchart";
 import PropertiesByStateChart from "../components/dashboards/propertiesbystatechart";
-import LeaseStatusChart from "../components/dashboards/leasestatuschart";
-import DocumentStatusChart from "../components/dashboards/documentstatuschart";
-import IncomeByPropertyTable from "../components/dashboards/incomebypropertytable";
 import PropertiesByCityChart from "../components/dashboards/propertiesbycitychart";
-import DocumentsByTypeChart from "../components/dashboards/documentsbytypechart";
 
 import ExcelJS from "exceljs";
 import { Button } from "@/components/ui/button";
@@ -127,14 +121,8 @@ export default function DashboardClient() {
   const [error, setError] = useState<string | null>(null);
 
   const [kpi, setKpi] = useState<any>(null);
-  const [incomeTrend, setIncomeTrend] = useState<any[]>([]);
-  const [leaseExp, setLeaseExp] = useState<any[]>([]);
   const [propertiesByState, setPropertiesByState] = useState<any[]>([]);
   const [propertiesByCity, setPropertiesByCity] = useState<any[]>([]);
-  const [leaseStatus, setLeaseStatus] = useState<any[]>([]);
-  const [incomeByProperty, setIncomeByProperty] = useState<any[]>([]);
-  const [documentStatus, setDocumentStatus] = useState<any[]>([]);
-  const [documentsByType, setDocumentsByType] = useState<any[]>([]);
 
   const fetchData = useCallback(
     async (overrideFilters?: any) => {
@@ -153,35 +141,17 @@ export default function DashboardClient() {
       try {
         const [
           kpiRes,
-          incomeTrendRes,
-          leaseExpRes,
           stateRes,
           cityRes,
-          leaseStatusRes,
-          incomePropRes,
-          docStatusRes,
-          docTypeRes,
         ] = await Promise.all([
           fetch(`/api/dashboard/kpi${query}`, { cache: "no-store" }),
-          fetch(`/api/dashboard/income-trend${query}`, { cache: "no-store" }),
-          fetch(`/api/dashboard/lease-expiration${query}`, { cache: "no-store" }),
           fetch(`/api/dashboard/properties-state${query}`, { cache: "no-store" }),
-          fetch(`/api/dashboard/properties-city${query}`, { cache: "no-store" }),
-          fetch(`/api/dashboard/lease-status${query}`, { cache: "no-store" }),
-          fetch(`/api/dashboard/income-property${query}`, { cache: "no-store" }),
-          fetch(`/api/dashboard/document-status${query}`, { cache: "no-store" }),
-          fetch(`/api/dashboard/document-type${query}`, { cache: "no-store" }),
+          fetch(`/api/dashboard/properties-city${query}`, { cache: "no-store" })
         ]);
 
         setKpi(await kpiRes.json());
-        setIncomeTrend(toArray(await incomeTrendRes.json()));
-        setLeaseExp(toArray(await leaseExpRes.json()));
         setPropertiesByState(toArray(await stateRes.json()));
         setPropertiesByCity(toArray(await cityRes.json()));
-        setLeaseStatus(toArray(await leaseStatusRes.json()));
-        setIncomeByProperty(toArray(await incomePropRes.json()));
-        setDocumentStatus(toArray(await docStatusRes.json()));
-        setDocumentsByType(toArray(await docTypeRes.json()));
       } catch (err: any) {
         console.error("Dashboard fetch error:", err);
         setError(err.message || "Failed to load dashboard");
@@ -216,25 +186,13 @@ export default function DashboardClient() {
   const sheetsPayload = useMemo(
     () => ({
       KPI: [kpi],
-      IncomeTrend: incomeTrend,
-      LeaseExpiring: leaseExp,
       PropertiesByState: propertiesByState,
       PropertiesByCity: propertiesByCity,
-      LeaseStatus: leaseStatus,
-      IncomeByProperty: incomeByProperty,
-      DocumentStatus: documentStatus,
-      DocumentsByType: documentsByType,
     }),
     [
       kpi,
-      incomeTrend,
-      leaseExp,
       propertiesByState,
       propertiesByCity,
-      leaseStatus,
-      incomeByProperty,
-      documentStatus,
-      documentsByType,
     ]
   );
 
@@ -253,14 +211,8 @@ export default function DashboardClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           kpi,
-          incomeTrend,
-          leaseExp,
           propertiesByState,
           propertiesByCity,
-          leaseStatus,
-          incomeByProperty,
-          documentStatus,
-          documentsByType,
           startDate: filters.startDate,
           endDate: filters.endDate,
         }),
@@ -314,14 +266,6 @@ export default function DashboardClient() {
               Export KPI (CSV)
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => exportCSV("incomeTrend.csv", incomeTrend)}
-            >
-              Income Trend (CSV)
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => exportCSV("leaseExp.csv", leaseExp)}>
-              Lease Expiring (CSV)
-            </DropdownMenuItem>
-            <DropdownMenuItem
               onClick={() => exportCSV("propertiesByState.csv", propertiesByState)}
             >
               Properties by State (CSV)
@@ -331,27 +275,6 @@ export default function DashboardClient() {
             >
               Properties by City (CSV)
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => exportCSV("leaseStatus.csv", leaseStatus)}
-            >
-              Lease Status (CSV)
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => exportCSV("incomeByProperty.csv", incomeByProperty)}
-            >
-              Income by Property (CSV)
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => exportCSV("documentStatus.csv", documentStatus)}
-            >
-              Document Status (CSV)
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => exportCSV("documentsByType.csv", documentsByType)}
-            >
-              Documents by Type (CSV)
-            </DropdownMenuItem>
-
             <DropdownMenuItem
               onClick={handleExportAllXLSX}
               className="font-semibold text-blue-600"
@@ -449,22 +372,12 @@ export default function DashboardClient() {
         <>
           <KPIGroup kpi={kpi} />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <IncomeTrendChart data={incomeTrend} />
-            <LeaseExpirationChart data={leaseExp} />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div>
             <PropertiesByStateChart data={propertiesByState} />
-            <LeaseStatusChart data={leaseStatus} />
-            <DocumentStatusChart data={documentStatus} />
           </div>
 
-          <IncomeByPropertyTable data={incomeByProperty} />
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
             <PropertiesByCityChart data={propertiesByCity} />
-            <DocumentsByTypeChart data={documentsByType} />
           </div>
         </>
       )}

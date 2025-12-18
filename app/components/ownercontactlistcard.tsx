@@ -131,7 +131,7 @@ function DeleteContactModal({ open, onClose, contact, onDeleted }: any) {
 }
 
 /* ------------------ MAIN COMPONENT ---------------------- */
-export default function ContactTable() {
+export default function OwnerContactTable() {
   const router = useRouter();
   const { data: session, status } = useSession();
 
@@ -159,7 +159,7 @@ export default function ContactTable() {
       setIsLoading(true);
 
       const res = await fetch(
-        `/api/contacts?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(
+        `/api/owner-contacts?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(
           globalFilter
         )}`
       );
@@ -292,7 +292,7 @@ export default function ContactTable() {
           <div className="flex items-center gap-2">
             <Contact className="w-6 h-6 text-gray-700" />
             <h2 className="text-xl font-semibold text-gray-800">
-              Broker List
+              User Broker List
             </h2>
           </div>
           <p className="text-sm text-gray-500">Manage broker contacts.</p>

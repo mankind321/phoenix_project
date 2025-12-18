@@ -172,7 +172,7 @@ export default function ContactFormPage() {
           payload?.data ?? payload?.contact ?? payload;
 
         if (!contact) {
-          setError("Contact not found");
+          setError("Broker not found");
           return;
         }
 

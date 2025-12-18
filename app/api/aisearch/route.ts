@@ -47,7 +47,7 @@ const US_STATES: Record<string, string> = {
 // -------------------------------------------------
 // KEYWORD TARGET DETECTOR
 // -------------------------------------------------
-function detectSearchTarget(prompt: string): "property" | "lease" | "document" | "all" {
+function detectSearchTarget(prompt: string): "property" | "lease" | "all" {
   const p = prompt.toLowerCase();
 
   // EVERYTHING MODE ALWAYS WINS
@@ -57,7 +57,6 @@ function detectSearchTarget(prompt: string): "property" | "lease" | "document" |
   // Otherwise detect specific target
   if (p.includes("property") || p.includes("properties")) return "property";
   if (p.includes("lease") || p.includes("leases")) return "lease";
-  if (p.includes("document") || p.includes("documents") || p.includes("doc")) return "document";
 
   return "all";
 }
@@ -243,7 +242,6 @@ export async function POST(req: Request) {
 
       const { data: allProps } = await supabase.from("property").select("*");
       const { data: allLeases } = await supabase.from("lease").select("*");
-      const { data: allDocs } = await supabase.from("document").select("*");
 
       return NextResponse.json({
         success: true,
@@ -251,7 +249,6 @@ export async function POST(req: Request) {
         results: {
           properties: allProps ?? [],
           leases: allLeases ?? [],
-          documents: allDocs ?? [],
         },
       });
     }
@@ -281,7 +278,6 @@ export async function POST(req: Request) {
 
     let propertyData = [];
     let leaseData = [];
-    let documentData = [];
 
     // PROPERTY SEARCH
     if (target === "property") {
@@ -306,21 +302,12 @@ export async function POST(req: Request) {
       leaseData = data ?? [];
     }
 
-    // DOCUMENT SEARCH
-    if (target === "document") {
-      const { data } = await supabase.rpc("search_document_vector", {
-        p_query: queryEmbedding,
-      });
-      documentData = data ?? [];
-    }
-
     return NextResponse.json({
       success: true,
       meta: { query: userPrompt, extracted_params: params, geocoded: geo, target },
       results: {
         properties: propertyData,
         leases: leaseData,
-        documents: documentData,
       },
     });
   } catch (err: any) {
