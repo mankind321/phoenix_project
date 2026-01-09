@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useMemo,  useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Search, FileText, Building } from "lucide-react";
+import { Sparkles, Search, FileText, Building, File } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 // Suggested examples
@@ -18,6 +18,11 @@ const suggestedQueries = [
 ];
 
 const PAGE_SIZE = 10;
+
+// ---------- Helper: normalize GS/GCS URLs (browser-safe) ----------
+function normalizeGsUrl(url: string) {
+  return url.replace(`gs://${process.env.NEXT_PUBLIC_GCP_BUCKET}/`, "");
+}
 
 // ---------- Component ----------
 export default function AISearch() {
@@ -34,6 +39,12 @@ export default function AISearch() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = PAGE_SIZE;
+
+  // ---------- Download handler ----------
+  const handleDownload = useCallback((url: string) => {
+    const clean = normalizeGsUrl(url);
+    window.location.href = `/api/gcp/download?path=${encodeURIComponent(clean)}`;
+  }, []);
 
   // ---------- Input / suggestions ----------
   const handleInput = (value: string) => {
@@ -90,6 +101,12 @@ export default function AISearch() {
           landlord: l.landlord,
           raw: l,
         })),
+        ...(data.results?.documents || []).map((d: any) => ({
+          type: "document",
+          id: d.document_id,
+          name: d.doc_type || "Document",
+          raw: d,
+        })),
       ];
 
       setResults(unifiedResults);
@@ -105,6 +122,10 @@ export default function AISearch() {
   const openDetails = (item: any) => {
     if (item.type === "property") router.push(`/dashboard/properties/${item.id}`);
     else if (item.type === "lease") router.push(`/dashboard/leases/${item.id}`);
+    else if (item.type === "document") {
+      // For documents we prefer download instead of openDetails
+      if (item.raw?.file_url) handleDownload(item.raw.file_url);
+    }
   };
 
   // ---------- Pagination calculations ----------
@@ -159,10 +180,10 @@ export default function AISearch() {
       <div>
         <h2 className="text-xl font-semibold flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-purple-500" />
-          AI-Powered Search
+          AI-Powered Search (Properties • Leases • Documents)
         </h2>
         <p className="text-sm text-muted-foreground">
-          Search naturally by city, state, property name, tenant, or address.
+          Ask natural questions to explore properties, leases, and documents.
         </p>
       </div>
 
@@ -242,6 +263,7 @@ export default function AISearch() {
                   <div className="flex items-center gap-2">
                     {item.type === "property" && <Building className="h-5 w-5 text-blue-500" />}
                     {item.type === "lease" && <FileText className="h-5 w-5 text-green-500" />}
+                    {item.type === "document" && <File className="h-5 w-5 text-purple-500" />}
                     <h3 className="text-base font-semibold text-gray-800">{item.name}</h3>
                   </div>
 
@@ -281,6 +303,16 @@ export default function AISearch() {
                       </p>
                     </>
                   )}
+
+                  {item.type === "document" && (
+                    <>
+                      <p className="text-sm">Document Type: {item.raw?.doc_type || "N/A"}</p>
+                      <p className="text-sm mt-1">Uploaded On: {item.raw?.uploaded_on || "N/A"}</p>
+                      <p className="text-sm mt-1">
+                        Confidence Score: {item.raw?.confidence_score ?? "N/A"}
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 {/* Buttons Row */}
@@ -294,12 +326,23 @@ export default function AISearch() {
                   </button>
 
                   {/* Right-side action: navigate or download */}
+                  {item.type !== "document" ? (
                     <Button
                       className="bg-blue-700 hover:bg-blue-500 text-white text-xs px-3 py-1 h-8"
                       onClick={() => openDetails(item)}
                     >
                       View {item.type}
                     </Button>
+                  ) : (
+                    item.raw?.file_url && (
+                      <Button
+                        className="bg-blue-700 hover:bg-blue-500 text-white text-xs px-3 py-1 h-8"
+                        onClick={() => handleDownload(item.raw.file_url)}
+                      >
+                        View Document
+                      </Button>
+                    )
+                  )}
                 </div>
 
                 {/* Details (expand) */}
@@ -322,6 +365,26 @@ export default function AISearch() {
                         <p><strong>Lease End:</strong> {item.raw?.lease_end || "N/A"}</p>
                         <p><strong>Status:</strong> {item.raw?.status || "N/A"}</p>
                         <p><strong>Comments:</strong> {item.raw?.comments || "—"}</p>
+                      </>
+                    )}
+
+                    {item.type === "document" && (
+                      <>
+                        <p><strong>Document Type:</strong> {item.raw?.doc_type || "N/A"}</p>
+                        <p><strong>Uploaded On:</strong> {item.raw?.uploaded_on || "N/A"}</p>
+                        <p><strong>Confidence Score:</strong> {item.raw?.confidence_score ?? "N/A"}</p>
+                        <p><strong>Extraction Status:</strong> {item.raw?.extraction_status || "N/A"}</p>
+
+                        {item.raw?.file_url && (
+                          <div className="pt-2">
+                            <Button
+                              className="bg-blue-700 hover:bg-blue-500 text-white text-xs px-3 py-1 h-8"
+                              onClick={() => handleDownload(item.raw.file_url)}
+                            >
+                              View Document
+                            </Button>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>

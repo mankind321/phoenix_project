@@ -3,7 +3,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { CircleGauge, Calendar, Download, ChevronDown } from "lucide-react";
+import { CircleGauge, 
+  //Calendar, 
+  Download, ChevronDown } from "lucide-react";
 
 import {
   DropdownMenu,
@@ -17,7 +19,7 @@ import PropertiesByStateChart from "../components/dashboards/propertiesbystatech
 import PropertiesByCityChart from "../components/dashboards/propertiesbycitychart";
 
 import ExcelJS from "exceljs";
-import { Button } from "@/components/ui/button";
+//import { Button } from "@/components/ui/button";
 
 /* =============================================================
    Utilities
@@ -115,7 +117,7 @@ export default function DashboardClient() {
   const [filters, setFilters] = useState({ startDate: "", endDate: "" });
 
   // Draft filters user edits (not applied yet)
-  const [draftFilters, setDraftFilters] = useState({ startDate: "", endDate: "" });
+  //const [draftFilters, setDraftFilters] = useState({ startDate: "", endDate: "" });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -175,7 +177,7 @@ export default function DashboardClient() {
       .split("T")[0];
 
     setFilters({ startDate: start, endDate: end });
-    setDraftFilters({ startDate: start, endDate: end });
+    //setDraftFilters({ startDate: start, endDate: end });
 
     fetchData();
   }, []);
@@ -247,7 +249,7 @@ export default function DashboardClient() {
             <h2 className="text-xl font-semibold text-gray-800">Dashboard</h2>
           </div>
           <p className="text-sm text-gray-500">
-            Live analytics — powered by Supabase & Recharts
+            Live analytics
           </p>
         </div>
 
@@ -292,9 +294,10 @@ export default function DashboardClient() {
         </DropdownMenu>
       </div>
 
-      {/* FILTER BAR */}
+{/* 
+      FILTER BAR
       <div className="bg-white rounded-xl shadow p-4 border flex gap-6 items-end">
-        {/* START DATE */}
+        START DATE
         <div className="flex flex-col">
           <label className="text-sm font-medium mb-1">Start Date</label>
           <div className="relative">
@@ -310,7 +313,7 @@ export default function DashboardClient() {
           </div>
         </div>
 
-        {/* END DATE */}
+        END DATE
         <div className="flex flex-col">
           <label className="text-sm font-medium mb-1">End Date</label>
           <div className="relative">
@@ -327,7 +330,7 @@ export default function DashboardClient() {
         </div>
 
         <div>
-          {/* APPLY BUTTON */}
+          APPLY BUTTON
           <Button
             onClick={() => {
               setFilters(draftFilters);
@@ -339,7 +342,7 @@ export default function DashboardClient() {
           </Button>
 
 
-          {/* RESET BUTTON */}
+          RESET BUTTON
           <Button
             onClick={() => {
               const now = new Date();
@@ -362,6 +365,7 @@ export default function DashboardClient() {
           </Button>
         </div>
       </div>
+*/}
 
       {/* ERROR */}
       {error && <div className="text-sm text-red-600">{error}</div>}
