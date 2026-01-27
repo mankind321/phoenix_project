@@ -41,7 +41,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
     }
 
-    // Fetch user data
     const { data: userData, error: userError } = await supabase
       .from("usersacc")
       .select(`
@@ -57,7 +56,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
     }
 
-    // Fetch account info
     const { data: accountData } = await supabase
       .from("account_view")
       .select("username, role, managerid, manager")
@@ -72,7 +70,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       manager: accountData?.manager ?? "",
     };
 
-    // Audit
     await logAuditTrail({
       userId: session.user.id,
       username: session.user.username,
@@ -86,16 +83,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     });
 
     return NextResponse.json({ success: true, user: response });
-
   } catch (error: any) {
     console.error("❌ GET /api/users/[id]:", error);
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }
 
-// ============================================================
-// 📝 UPDATE USER — ADMIN ONLY
-// ============================================================
 // ============================================================
 // 📝 UPDATE USER — ADMIN ONLY
 // ============================================================
@@ -109,6 +102,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 
     const { formData, accountData } = await req.json();
+
     if (!formData || !accountData) {
       return NextResponse.json(
         { success: false, message: "Missing form or account data" },
@@ -116,7 +110,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       );
     }
 
-    // Role validation
     if (accountData.role === "Agent" && !accountData.managerId) {
       return NextResponse.json(
         { success: false, message: "Agents must be assigned a manager." },
@@ -131,10 +124,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       );
     }
 
-    // Check existing user
     const { data: existingUser } = await supabase
       .from("usersacc")
-      .select("profile_image_url")
+      .select("profile_image_url, email")
       .eq("userid", id)
       .single();
 
@@ -144,7 +136,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     let newImageUrl = existingUser.profile_image_url;
 
-    // Replace profile image
     if (formData.profileImageUrl && formData.profileImageUrl !== existingUser.profile_image_url) {
       try {
         if (existingUser.profile_image_url?.includes("storage.googleapis.com")) {
@@ -158,14 +149,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       newImageUrl = formData.profileImageUrl;
     }
 
-    // Hash password if provided
     let newPasswordHash = null;
     if (accountData.password?.trim()) {
       newPasswordHash = await bcrypt.hash(accountData.password, 10);
     }
 
     // ============================================================
-    // 🏷️ UPDATE USER PROFILE (usersacc)
+    // 🏷️ UPDATE usersacc
     // ============================================================
     await supabase
       .from("usersacc")
@@ -188,7 +178,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       .eq("userid", id);
 
     // ============================================================
-    // 🔐 UPDATE ACCOUNT INFO (accounts)
+    // 🔐 UPDATE accounts
     // ============================================================
     const accountUpdate: any = {
       username: accountData.username,
@@ -204,24 +194,38 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     await supabase.from("accounts").update(accountUpdate).eq("user_id", id);
 
     // ============================================================
-    // 🔄 SYNC USERNAME TO accounts_status
+    // 🔄 SYNC EMAIL TO SUPABASE AUTH (CRITICAL)
     // ============================================================
-    const { data: acc } = await supabase
+    const { data: account } = await supabase
       .from("accounts")
-      .select("accountid")
+      .select("supabase_auth_user_id")
       .eq("user_id", id)
       .single();
 
-    if (acc?.accountid) {
-      await supabase
-        .from("accounts_status")
-        .update({ username: accountData.username })
-        .eq("account_id", acc.accountid);
+    if (
+      account?.supabase_auth_user_id &&
+      formData.email &&
+      formData.email !== existingUser.email
+    ) {
+      await supabase.auth.admin.updateUserById(
+        account.supabase_auth_user_id,
+        {
+          email: formData.email,
+          email_confirm: true
+        }
+      );
     }
 
     // ============================================================
-    // 📝 AUDIT LOG
+    // 🔄 SYNC USERNAME TO accounts_status
     // ============================================================
+    if (account?.supabase_auth_user_id) {
+      await supabase
+        .from("accounts_status")
+        .update({ username: accountData.username })
+        .eq("account_id", account.supabase_auth_user_id);
+    }
+
     await logAuditTrail({
       userId: session.user.id,
       username: session.user.username,
@@ -235,13 +239,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     });
 
     return NextResponse.json({ success: true, message: "User updated successfully" });
-
   } catch (error: any) {
     console.error("❌ PUT /api/users/[id]:", error);
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }
-
 
 // ============================================================
 // 🗑 DELETE USER — ADMIN ONLY
@@ -254,71 +256,51 @@ export async function DELETE(
 
   try {
     const session = await getServerSession(authOptions);
-
     if (!session?.user || session.user.role !== "Admin") {
-      return NextResponse.json(
-        { success: false, message: "Forbidden" },
-        { status: 403 }
-      );
+      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
     }
 
+    const { data: account } = await supabase
+      .from("accounts")
+      .select("supabase_auth_user_id")
+      .eq("user_id", id)
+      .single();
+
     // ============================================================
-    // 🔒 Prevent deleting manager who has assigned agents
+    // 🔥 DELETE SUPABASE AUTH USER (CRITICAL)
     // ============================================================
+    if (account?.supabase_auth_user_id) {
+      await supabase.auth.admin.deleteUser(account.supabase_auth_user_id);
+    }
+
     const { data: managedAgents } = await supabase
       .from("accounts")
       .select("accountid")
       .eq("manager_id", id);
 
-    const agents = managedAgents ?? []; // SAFE fallback
-
-    if (agents.length > 0) {
+    if ((managedAgents ?? []).length > 0) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Cannot delete manager with assigned agents.",
-        },
+        { success: false, message: "Cannot delete manager with assigned agents." },
         { status: 400 }
       );
     }
 
-    // ============================================================
-    // 🔍 Fetch user for image cleanup
-    // ============================================================
     const { data: existingUser } = await supabase
       .from("usersacc")
       .select("profile_image_url")
       .eq("userid", id)
       .single();
 
-    if (!existingUser) {
-      return NextResponse.json(
-        { success: false, message: "User not found" },
-        { status: 404 }
-      );
-    }
-
-    // ============================================================
-    // 🗑️ Delete profile image from GCS (if exists)
-    // ============================================================
-    if (existingUser.profile_image_url?.includes("storage.googleapis.com")) {
+    if (existingUser?.profile_image_url?.includes("storage.googleapis.com")) {
       try {
         const file = existingUser.profile_image_url.split("/").pop();
         if (file) await bucket.file(`uploads/${file}`).delete();
-      } catch (err) {
-        console.warn("⚠️ Unable to delete GCS image:", err);
-      }
+      } catch {}
     }
 
-    // ============================================================
-    // 🗑️ Delete account & user records
-    // ============================================================
     await supabase.from("accounts").delete().eq("user_id", id);
     await supabase.from("usersacc").delete().eq("userid", id);
 
-    // ============================================================
-    // 📝 Audit Log
-    // ============================================================
     await logAuditTrail({
       userId: session.user.id,
       username: session.user.username,
@@ -337,9 +319,6 @@ export async function DELETE(
     });
   } catch (error: any) {
     console.error("❌ DELETE /api/users/[id]:", error);
-    return NextResponse.json(
-      { success: false, message: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }

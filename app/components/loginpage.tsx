@@ -6,7 +6,13 @@ import { signIn, getSession } from "next-auth/react";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../../components/ui/card";
 import { Lock, LogIn, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,19 +22,19 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  // Reusable toast
+  // ==========================================
+  // 🔔 REUSABLE ERROR TOAST
+  // ==========================================
   const showErrorToast = (title: string, message: string) => {
     toast.custom((id) => (
       <div
-        className="bg-white border-1 border-red-500 text-red-500 p-6 rounded-lg text-lg shadow-lg w-sm"
+        className="bg-white border border-red-500 text-red-500 p-6 rounded-lg text-lg shadow-lg w-sm cursor-pointer"
         onClick={() => toast.dismiss(id)}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <XCircle className="w-10 h-10 text-white bg-red-500 rounded-full p-1" />
           <div>
-            <XCircle className="w-10 h-10 mt-1 text-white bg-red-500 rounded-3xl" />
-          </div>
-          <div>
-            <h3 className="font-bold mb-0">{title}</h3>
+            <h3 className="font-bold">{title}</h3>
             <p>{message}</p>
           </div>
         </div>
@@ -36,9 +42,15 @@ export function LoginForm() {
     ));
   };
 
+  // ==========================================
+  // 🔐 LOGIN HANDLER
+  // ==========================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    // 🔴 IMPORTANT: mark login in progress
+    sessionStorage.setItem("isLoggingIn", "true");
 
     try {
       const res = await signIn("credentials", {
@@ -51,14 +63,13 @@ export function LoginForm() {
       // ❌ LOGIN FAILED
       // ---------------------------
       if (!res || !res.ok) {
-        // Custom backend error
-        if (res && res.error === "ACCOUNT_ALREADY_LOGGED_IN") {
-          showErrorToast("Login Rejected", "Account is already logged in.");
-          return;
-        }
+        sessionStorage.removeItem("isLoggingIn");
 
-        // Default invalid credentials
-        showErrorToast("Error", "Invalid credentials");
+        if (res?.error === "ACCOUNT_ALREADY_LOGGED_IN") {
+          showErrorToast("Login Rejected", "Account is already logged in.");
+        } else {
+          showErrorToast("Error", "Invalid credentials.");
+        }
         return;
       }
 
@@ -66,19 +77,30 @@ export function LoginForm() {
       // ✔ LOGIN SUCCESS
       // ---------------------------
       const session = await getSession();
-      if (!session?.user) throw new Error("Session not found");
+      if (!session?.user) {
+        throw new Error("Session not found after login");
+      }
 
+      // 🔑 CLEAR ALL AUTH FLAGS
+      sessionStorage.removeItem("isLoggingIn");
+      sessionStorage.removeItem("isLoggingOut");
+      sessionStorage.removeItem("user-inactive");
+
+      toast.success("Login successfully");
       router.push("/dashboard/properties");
-      toast.success("Login Successfully");
-
     } catch (err) {
-      console.error(err);
+      console.error("Login error:", err);
+
+      sessionStorage.removeItem("isLoggingIn");
       toast.error("Unexpected error occurred during login.");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ==========================================
+  // 🧩 UI
+  // ==========================================
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50">
       <Card className="w-full max-w-xl mx-4 shadow-md border border-gray-200 rounded-xl">
@@ -105,7 +127,7 @@ export function LoginForm() {
                 onChange={(e) => setUserName(e.target.value)}
                 required
                 disabled={isLoading}
-                className="h-11 w-full border border-shadow border-gray-300"
+                className="h-11 w-full border border-gray-300"
               />
             </div>
 
@@ -119,13 +141,13 @@ export function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                className="h-11 w-full border border-shadow border-gray-300"
+                className="h-11 w-full border border-gray-300"
               />
             </div>
 
             <Button
               type="submit"
-              className="w-full h-11 bg-blue-600 text-white hover:bg-blue-400 hover:text-white"
+              className="w-full h-11 bg-blue-600 text-white hover:bg-blue-500"
               disabled={isLoading}
             >
               <div className="flex items-center gap-2">

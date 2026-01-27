@@ -212,3 +212,96 @@ export async function GET(
     );
   }
 }
+
+// ----------------------------------------------
+// ❌ DELETE — DELETE PROPERTY BY ID
+// ----------------------------------------------
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: propertyId } = await params;
+
+    if (!propertyId) {
+      return NextResponse.json(
+        { success: false, message: "Property ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // 1️⃣ Validate session
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // 2️⃣ Build RLS headers
+    const rlsHeaders = {
+      "x-app-role": session.user.role,
+      "x-user-id": session.user.id,
+      "x-account-id": session.user.accountId ?? "",
+    };
+
+    // 3️⃣ Supabase RLS client
+    const supabase = createRlsClient(rlsHeaders);
+
+    // ----------------------------------------------
+    // 4️⃣ Fetch property (for audit logging)
+    // ----------------------------------------------
+    const { data: property, error: fetchError } = await supabase
+      .from("property")
+      .select("property_id, name")
+      .eq("property_id", propertyId)
+      .single();
+
+    if (fetchError || !property) {
+      return NextResponse.json(
+        { success: false, message: "Property not found" },
+        { status: 404 }
+      );
+    }
+
+    // ----------------------------------------------
+    // 5️⃣ Delete property
+    // ----------------------------------------------
+    const { error: deleteError } = await supabase
+      .from("property")
+      .delete()
+      .eq("property_id", propertyId);
+
+    if (deleteError) throw deleteError;
+
+    // ----------------------------------------------
+    // 6️⃣ Audit Log
+    // ----------------------------------------------
+    await logAuditTrail({
+      userId: session.user.id,
+      username: session.user.username,
+      role: session.user.role,
+      actionType: "DELETE",
+      tableName: "property",
+      description: `Deleted property: ${property.name}`,
+      ipAddress: req.headers.get("x-forwarded-for") ?? "N/A",
+      userAgent: req.headers.get("user-agent") ?? "Unknown",
+    });
+
+    // ----------------------------------------------
+    // 7️⃣ Success Response
+    // ----------------------------------------------
+    return NextResponse.json({
+      success: true,
+      message: "Property deleted successfully",
+    });
+  } catch (err: any) {
+    console.error("DELETE /property/[id] Error:", err);
+    return NextResponse.json(
+      { success: false, message: err.message || "Server error" },
+      { status: 500 }
+    );
+  }
+}
+

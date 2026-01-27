@@ -31,7 +31,7 @@ type Lease = {
   property_name?: string;
   property_address?: string;
   property_type?: string;
-  property_landlord?:string;
+  property_landlord?: string;
   lease_start?: string;
   lease_end?: string;
   annual_rent?: number | string;
@@ -64,7 +64,6 @@ export default function LeaseListPage() {
 
   const router = useRouter();
 
-
   // Fetch leases (Audit-style)
   useEffect(() => {
     async function fetchData() {
@@ -84,16 +83,15 @@ export default function LeaseListPage() {
       const res = await fetch(`/api/lease?${params.toString()}`);
       const data = await res.json();
 
-    if (data?.data) {
+      if (data?.data) {
         setLeases(data.data);
 
         const total = data.total ?? 0;
         setTotalPages(Math.max(1, Math.ceil(total / pageSize)));
-    } else {
+      } else {
         setLeases([]);
         setTotalPages(1);
-    }
-
+      }
 
       setIsLoading(false);
     }
@@ -106,101 +104,56 @@ export default function LeaseListPage() {
     setPage(1);
   }, [search, status, fromDate, toDate, minPrice, maxPrice]);
 
+  const handleSearch = () => {
+    // call API, refetch table, or apply search logic here
+    console.log("Searching for:", search);
+  };
+
   return (
     <div className="w-11/12 mx-auto mt-6 space-y-6">
-
-      {/* ===================== */}
+      {/* ======================== */}
       {/* FILTER SECTION (NO CARD) */}
-      {/* ===================== */}
+      {/* ======================== */}
       <div>
+        {/* Header */}
         <div className="flex items-center space-x-2 mb-2">
           <FileText className="w-6 h-6 text-gray-700" />
-          <h2 className="text-xl font-semibold text-gray-800">Tenant Directory</h2>
+          <h2 className="text-xl font-semibold text-gray-800">
+            Tenant Directory
+          </h2>
         </div>
 
         <p className="text-sm text-gray-500 mb-4">
-          Search tenant, property, landlord, comments… Filters refine results.
+          Search tenant, property, landlord, or comments.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        {/* Search Bar */}
+        <div className="flex gap-2 items-center">
+          <Input
+            className="w-full h-10"
+            placeholder="Search tenant, property, landlord…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleSearch();
+              }
+            }}
+          />
 
-          {/* Search box */}
-          <div className="md:col-span-4">
-            <p className="text-sm font-medium text-gray-600 mb-1">Search</p>
-            <div className="flex gap-2 items-center">
-              <Input
-                className="w-full h-10"
-                placeholder="Search tenant, property, landlord…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <Button className="px-3 h-10 bg-blue-600 hover:bg-blue-700 text-white">
-                <SearchIcon className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Status */}
-          <div>
-            <p className="text-sm font-medium text-gray-600 mb-1">Status</p>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="expiring">Expiring</SelectItem>
-                <SelectItem value="expired">Expired</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Date range */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">From</p>
-              <Input
-                type="date"
-                value={fromDate ?? ""}
-                onChange={(e) => setFromDate(e.target.value || null)}
-              />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">To</p>
-              <Input
-                type="date"
-                value={toDate ?? ""}
-                onChange={(e) => setToDate(e.target.value || null)}
-              />
-            </div>
-          </div>
-
-          {/* Price range */}
-          <div className="grid grid-cols-2 gap-2 md:col-span-2">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Min Price</p>
-              <Input
-                type="number"
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-              />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Max Price</p>
-              <Input
-                type="number"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-              />
-            </div>
-          </div>
+          <Button
+            onClick={handleSearch}
+            className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+          >
+            <SearchIcon className="w-4 h-4" />
+            Search
+          </Button>
         </div>
       </div>
 
-      {/* ===================== */}
+      {/* ==================== */}
       {/* LEASE LIST (NO CARD) */}
-      {/* ===================== */}
+      {/* ==================== */}
       <div>
         <div className="flex items-center gap-2 mb-4">
           <FileText className="w-5 h-5 text-gray-600" />
@@ -245,8 +198,8 @@ export default function LeaseListPage() {
                         </h3>
 
                         <p className="text-xs text-gray-500">
-                          Tenant: <strong>{lease.tenant ?? "—"}</strong> · Landlord:{" "}
-                          <strong>{lease.landlord ?? "—"}</strong>
+                          Tenant: <strong>{lease.tenant ?? "—"}</strong> ·
+                          Landlord: <strong>{lease.landlord ?? "—"}</strong>
                         </p>
 
                         <p className="text-xs text-gray-500">
@@ -266,10 +219,10 @@ export default function LeaseListPage() {
                           lease.status === "active"
                             ? "bg-green-100 text-green-700"
                             : lease.status === "expiring"
-                            ? "bg-yellow-100 text-yellow-700"
-                            : lease.status === "expired"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-gray-100 text-gray-600"
+                              ? "bg-yellow-100 text-yellow-700"
+                              : lease.status === "expired"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-gray-100 text-gray-600"
                         }`}
                       >
                         {lease.status}
@@ -278,7 +231,7 @@ export default function LeaseListPage() {
                       <div className="text-sm font-semibold text-gray-800">
                         $
                         {Number(
-                          lease.annual_rent || lease.price || 0
+                          lease.annual_rent || lease.price || 0,
                         ).toLocaleString("en-US", {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
@@ -307,7 +260,9 @@ export default function LeaseListPage() {
                     <Button
                       variant="outline"
                       className="bg-blue-600 hover:bg-blue-700 text-white hover:text-white"
-                      onClick={() => router.push(`/dashboard/leases/${lease.lease_id}`)}
+                      onClick={() =>
+                        router.push(`/dashboard/leases/${lease.lease_id}`)
+                      }
                     >
                       <FileSearch />
                       Go to Lease Record
@@ -317,9 +272,16 @@ export default function LeaseListPage() {
                   {/* ===== INLINE DETAILS ===== */}
                   {expanded === key && (
                     <div className="mt-4 bg-gray-50 p-4 rounded-lg border text-sm space-y-2">
-                      <p><strong>Property Type:</strong> {lease.property_type}</p>
-                      <p><strong>Property Landlord:</strong> {lease.property_landlord}</p>
-                      <p><strong>Comments:</strong> {lease.comments ?? "—"}</p>
+                      <p>
+                        <strong>Property Type:</strong> {lease.property_type}
+                      </p>
+                      <p>
+                        <strong>Property Landlord:</strong>{" "}
+                        {lease.property_landlord}
+                      </p>
+                      <p>
+                        <strong>Comments:</strong> {lease.comments ?? "—"}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -328,7 +290,11 @@ export default function LeaseListPage() {
 
             {/* Pagination */}
             <div className="flex justify-between items-center mt-6 border-t pt-4">
-              <Button variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              <Button
+                variant="outline"
+                disabled={page <= 1}
+                onClick={() => setPage(page - 1)}
+              >
                 Prev
               </Button>
 
@@ -349,5 +315,4 @@ export default function LeaseListPage() {
       </div>
     </div>
   );
-
 }

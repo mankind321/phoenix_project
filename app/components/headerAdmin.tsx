@@ -23,6 +23,7 @@ import {
   KeyRound,
   User,
   LogOut,
+  Monitor,
 } from "lucide-react";
 
 import {
@@ -120,6 +121,7 @@ export const TopHeaderAdmin: React.FC = () => {
     { label: "Tenants", path: "/dashboard/leases", icon: <ClipboardList className="w-4 h-4" /> },
     { label: "Contacts", path: "/dashboard/contact", icon: <Contact className="w-4 h-4" /> },
     { label: "Documents", path: "/dashboard/documents", icon: <FileText className="w-4 h-4" /> },
+    { label: "Error Monitoring", path: "/dashboard/errormonitoring", icon: <Monitor className="w-4 h-4" /> },
     { label: "Statistics", path: "/dashboard/main", icon: <CircleGauge className="w-4 h-4" /> },
     { label: "Review", path: "/dashboard/review", icon: <View className="w-4 h-4" /> },
     { label: "Audit Trail", path: "/dashboard/audit-trail", icon: <Activity className="w-4 h-4" /> },

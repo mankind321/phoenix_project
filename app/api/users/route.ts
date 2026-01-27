@@ -13,9 +13,6 @@ const supabase = createClient(
 );
 
 // ============================================================
-// GET — Fetch All Users (Admin Only)
-// ============================================================
-// ============================================================
 // GET — Fetch Users (Admin Only) with Pagination + Search
 // ============================================================
 export async function GET(req: Request) {
@@ -28,21 +25,17 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
 
-    // Pagination
     const page = Number(searchParams.get("page") || 1);
     const pageSize = Number(searchParams.get("pageSize") || 10);
     const offset = (page - 1) * pageSize;
-
-    // Search keyword
     const search = searchParams.get("search")?.trim() || "";
 
     let query = supabase
       .from("useraccountaccesslist")
-      .select("*", { count: "exact" }) // return total count
+      .select("*", { count: "exact" })
       .order("userid", { ascending: true })
       .range(offset, offset + pageSize - 1);
 
-    // If search keyword exists → search multiple fields
     if (search) {
       query = query.or(
         `first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%,username.ilike.%${search}%`
@@ -50,10 +43,8 @@ export async function GET(req: Request) {
     }
 
     const { data, error, count } = await query;
-
     if (error) throw error;
 
-    // Audit Log
     await logAuditTrail({
       userId: session.user.id,
       username: session.user.username,
@@ -72,7 +63,6 @@ export async function GET(req: Request) {
       page,
       pageSize,
     });
-
   } catch (err: any) {
     return NextResponse.json(
       { success: false, message: err.message },
@@ -81,9 +71,8 @@ export async function GET(req: Request) {
   }
 }
 
-
 // ============================================================
-// POST — Create User + Account (Admin Only)
+// POST — Create User + Account + Supabase Auth (Admin Only)
 // ============================================================
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
@@ -96,8 +85,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const body = await req.json();
-    const { formData, accountData } = body;
+    const { formData, accountData } = await req.json();
 
     if (!formData || !accountData) {
       return NextResponse.json(
@@ -106,7 +94,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1️⃣ Insert into usersacc
+    // ============================================================
+    // 1️⃣ Insert usersacc
+    // ============================================================
     const { data: userInserted, error: userError } = await supabase
       .from("usersacc")
       .insert([
@@ -131,14 +121,17 @@ export async function POST(req: Request) {
       .single();
 
     if (userError) throw userError;
-
     const userid = userInserted.userid;
 
+    // ============================================================
     // 2️⃣ Hash password
+    // ============================================================
     const hashedPassword = await bcrypt.hash(accountData.password, 10);
 
-    // 3️⃣ Insert into accounts
-    const { error: accountError } = await supabase
+    // ============================================================
+    // 3️⃣ Insert accounts
+    // ============================================================
+    const { data: accountInserted, error: accountError } = await supabase
       .from("accounts")
       .insert([
         {
@@ -148,11 +141,41 @@ export async function POST(req: Request) {
           role: accountData.role,
           manager_id: accountData.managerId || null,
         }
-      ]);
+      ])
+      .select("accountid")
+      .single();
 
     if (accountError) throw accountError;
 
-    // 4️⃣ Audit Log
+    // ============================================================
+    // 4️⃣ CREATE SUPABASE AUTH USER (SHADOW IDENTITY)
+    // ============================================================
+    const { data: authUser, error: authError } =
+      await supabase.auth.admin.createUser({
+        email: formData.email,
+        email_confirm: true,
+        user_metadata: {
+          accountid: accountInserted.accountid,
+          username: accountData.username,
+          role: accountData.role,
+        }
+      });
+
+    if (authError) throw authError;
+
+    // ============================================================
+    // 5️⃣ LINK AUTH USER TO ACCOUNT
+    // ============================================================
+    await supabase
+      .from("accounts")
+      .update({
+        supabase_auth_user_id: authUser.user.id
+      })
+      .eq("accountid", accountInserted.accountid);
+
+    // ============================================================
+    // 6️⃣ AUDIT LOG
+    // ============================================================
     await logAuditTrail({
       userId: session.user.id,
       username: session.user.username,
@@ -172,6 +195,7 @@ export async function POST(req: Request) {
     });
 
   } catch (err: any) {
+    console.error("❌ POST /api/users:", err);
     return NextResponse.json(
       { success: false, message: err.message },
       { status: 500 }

@@ -34,6 +34,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Users,
+  LogOutIcon,
+  LogOut,
 } from "lucide-react";
 
 import { useSession } from "next-auth/react";
@@ -267,13 +269,14 @@ export default function UserTable() {
               </Button>
 
               <Button
+                className="bg-blue-700 hover:bg-blue-500 text-white hover:text-white"
                 size="sm"
                 variant="secondary"
                 disabled={loggingOutUserId === user.userid}
                 onClick={() => handleForceLogout(user)}
                 title="Force Logout"
               >
-                <RotateCcw size={15} />
+                <LogOut size={15} />
               </Button>
 
               <Button

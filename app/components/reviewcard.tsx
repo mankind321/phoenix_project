@@ -52,7 +52,9 @@ export default function ReviewPropertyListPage() {
 
   // Modal
   const [showConfirm, setShowConfirm] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"approve" | "reject" | null>(null);
+  const [pendingAction, setPendingAction] = useState<
+    "approve" | "reject" | null
+  >(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // -------------------------------------------------------
@@ -100,44 +102,41 @@ export default function ReviewPropertyListPage() {
     const loadingMessage =
       pendingAction === "approve"
         ? "Approving property..."
-        : "Rejecting property and archiving documents...";
+        : "Rejecting and deleting property...";
 
     toast.promise(
       (async () => {
-        // -----------------------------------------------------------------
-        // 1️⃣ If rejecting → archive property documents FIRST
-        // -----------------------------------------------------------------
+        // -------------------------------------------------------
+        // ❌ REJECT FLOW → DELETE PROPERTY ONLY
+        // -------------------------------------------------------
         if (pendingAction === "reject") {
-          const archiveRes = await fetch(
-            `/api/properties/archive-documents/${selectedId}`,
-            {
-              method: "POST",
-            }
-          );
+          const deleteRes = await fetch(`/api/property/${selectedId}`, {
+            method: "DELETE",
+          });
 
-          const archiveData = await archiveRes.json();
-          if (!archiveRes.ok) {
-            throw new Error(
-              archiveData.error ||
-                "Failed to archive documents before rejection"
-            );
+          const deleteData = await deleteRes.json();
+          if (!deleteRes.ok) {
+            throw new Error(deleteData.message || "Failed to delete property");
           }
+
+          return deleteData;
         }
 
-        // -----------------------------------------------------------------
-        // 2️⃣ Continue with your existing reject/approve endpoint
-        // -----------------------------------------------------------------
+        // -------------------------------------------------------
+        // ✅ APPROVE FLOW (unchanged)
+        // -------------------------------------------------------
         const res = await fetch("/api/review/action", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             propertyId: selectedId,
-            action: pendingAction,
+            action: "approve",
           }),
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Action failed");
+        if (!res.ok)
+          throw new Error(data.error || "Failed to approve property");
 
         return data;
       })(),
@@ -145,20 +144,19 @@ export default function ReviewPropertyListPage() {
         loading: loadingMessage,
 
         success: async () => {
-          await fetchData(); // reload list ONLY
-
+          await fetchData(); // refresh list only
           setIsProcessing(false);
 
           return pendingAction === "approve"
             ? "Property approved successfully"
-            : "Property rejected and documents archived";
+            : "Property deleted successfully";
         },
 
         error:
           pendingAction === "approve"
             ? "Failed to approve property"
-            : "Failed to reject property",
-      }
+            : "Failed to delete property",
+      },
     );
   }
 
@@ -308,9 +306,7 @@ export default function ReviewPropertyListPage() {
                   {/* DETAILS */}
                   <div className="flex justify-between items-center mt-4">
                     <button
-                      onClick={() =>
-                        setExpanded(expanded === key ? null : key)
-                      }
+                      onClick={() => setExpanded(expanded === key ? null : key)}
                       className="text-sm text-blue-600 flex items-center gap-1 hover:underline"
                     >
                       {expanded === key ? (
@@ -351,7 +347,11 @@ export default function ReviewPropertyListPage() {
 
             {/* PAGINATION */}
             <div className="flex justify-between mt-6 border-t pt-4">
-              <Button variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              <Button
+                variant="outline"
+                disabled={page <= 1}
+                onClick={() => setPage(page - 1)}
+              >
                 Prev
               </Button>
 
@@ -387,7 +387,7 @@ export default function ReviewPropertyListPage() {
           <p className="text-sm text-gray-600">
             {pendingAction === "approve"
               ? "This will mark the property as Active."
-              : "This will permanently delete the property and archive its documents."}
+              : "This will permanently delete the property information"}
           </p>
 
           <DialogFooter className="mt-4">

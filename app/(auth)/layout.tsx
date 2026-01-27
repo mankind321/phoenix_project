@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect, useRef, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -9,113 +9,129 @@ import { TopHeader } from "@/app/components/header";
 import { TopHeaderAdmin } from "@/app/components/headerAdmin";
 import { TopHeaderManager } from "@/app/components/headerManager";
 import { AutoLogout } from "@/app/components/autologout";
+import { useRealtimeTest } from "@/hooks/useRealtimeTest";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const router = useRouter();
 
   const wasAuthenticated = useRef(false);
-  const lastUserRef = useRef<{ accountId: string; username: string } | null>(
-    null
+  const offlineSentRef = useRef(false);
+  const onlineSentRef = useRef(false);
+
+  const lastUserRef = useRef<{
+    accountId: string;
+    username: string;
+  } | null>(null);
+
+  const isLoggingIn = () =>
+    sessionStorage.getItem("isLoggingIn") === "true";
+
+  const isLoggingOut = () =>
+    sessionStorage.getItem("isLoggingOut") === "true";
+
+  // ==========================================
+  // 🔴 SEND OFFLINE (SINGLE-FLIGHT)
+  // ==========================================
+  const sendOffline = useCallback(
+    (payload: { accountId: string; username: string }) => {
+      if (offlineSentRef.current) return;
+      if (isLoggingIn()) return;
+
+      offlineSentRef.current = true;
+
+      navigator.sendBeacon(
+        "/api/auth/update-status-offline",
+        JSON.stringify(payload)
+      );
+    },
+    []
   );
 
   // ==========================================
-  // 🔐 AUTH REDIRECT + STORE LAST USER
+  // 🟢 SEND ONLINE (ONCE PER LOGIN)
+  // ==========================================
+  const sendOnline = useCallback(
+    (payload: { accountId: string; username: string }) => {
+      if (onlineSentRef.current) return;
+
+      onlineSentRef.current = true;
+
+      fetch("/api/auth/update-status-online", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).catch((err) =>
+        console.error("Failed to set online:", err)
+      );
+    },
+    []
+  );
+
+  // ==========================================
+  // 🔐 AUTH STATE TRACKING
   // ==========================================
   useEffect(() => {
-    const intentionalLogout =
-      sessionStorage.getItem("isLoggingOut") === "true";
-
     if (status === "authenticated" && session?.user) {
       wasAuthenticated.current = true;
+      offlineSentRef.current = false;
+
       lastUserRef.current = {
         accountId: session.user.accountId,
         username: session.user.username,
       };
+
+      // ✅ Login stabilized → mark online
+      if (!isLoggingIn()) {
+        sendOnline(lastUserRef.current);
+      }
+
+      return;
     }
 
-    if (status === "unauthenticated") {
-      if (!intentionalLogout && wasAuthenticated.current) {
-        toast.error("Session expired. Please log in again.");
+    if (
+      status === "unauthenticated" &&
+      wasAuthenticated.current &&
+      !isLoggingOut() &&
+      !isLoggingIn()
+    ) {
+      toast.error("Session expired. Please log in again.");
+
+      if (lastUserRef.current) {
+        sendOffline(lastUserRef.current);
       }
 
       sessionStorage.removeItem("isLoggingOut");
       router.replace("/login");
     }
-  }, [status, session, router]);
+  }, [status, session, router, sendOffline, sendOnline]);
 
   // ==========================================
-  // 🔵 MARK USER OFFLINE ON REAL SESSION END
-  // ==========================================
-  useEffect(() => {
-    const intentionalLogout =
-      sessionStorage.getItem("isLoggingOut") === "true";
-
-    if (
-      status === "unauthenticated" &&
-      wasAuthenticated.current &&
-      !intentionalLogout &&
-      lastUserRef.current
-    ) {
-      navigator.sendBeacon(
-        "/api/auth/update-status-offline",
-        JSON.stringify(lastUserRef.current)
-      );
-    }
-  }, [status]);
-
-  // ==========================================
-  // 🔵 TAB & BROWSER CLOSE (BEST-EFFORT ONLY)
+  // 🔵 TAB CLOSE / BROWSER CLOSE / REFRESH ONLY
   // ==========================================
   useEffect(() => {
     if (!session?.user) return;
 
-    const payload = JSON.stringify({
+    const payload = {
       accountId: session.user.accountId,
       username: session.user.username,
-    });
-
-    const isIntentionalLogout = () =>
-      sessionStorage.getItem("isLoggingOut") === "true";
-
-    const handleVisibilityChange = () => {
-      if (
-        document.visibilityState === "hidden" &&
-        !isIntentionalLogout()
-      ) {
-        navigator.sendBeacon(
-          "/api/auth/update-status-offline",
-          payload
-        );
-      }
     };
 
     const handleBeforeUnload = () => {
-      if (!isIntentionalLogout()) {
-        navigator.sendBeacon(
-          "/api/auth/update-status-offline",
-          payload
-        );
+      if (!isLoggingOut() && !isLoggingIn()) {
+        sendOffline(payload);
       }
     };
 
-    document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
-      document.removeEventListener(
-        "visibilitychange",
-        handleVisibilityChange
-      );
-      window.removeEventListener(
-        "beforeunload",
-        handleBeforeUnload
-      );
+      window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [session]);
+  }, [sendOffline, session]);
 
   // ==========================================
-  // 🔵 AUTO LOGOUT AFTER 10 MINUTES IDLE
+  // ⏱ AUTO LOGOUT AFTER IDLE
   // ==========================================
   useEffect(() => {
     if (!session?.user) return;
@@ -127,33 +143,35 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
 
       sessionStorage.setItem("isLoggingOut", "true");
 
-      navigator.sendBeacon(
-        "/api/auth/update-status-offline",
-        JSON.stringify({
-          accountId: session.user.accountId,
-          username: session.user.username,
-        })
-      );
+      sendOffline({
+        accountId: session.user.accountId,
+        username: session.user.username,
+      });
 
       await signOut({ redirect: false });
       router.replace("/login");
     };
 
-    const interval = setInterval(checkIdle, 10_000); // check every 10s
+    const interval = setInterval(checkIdle, 10_000);
     return () => clearInterval(interval);
-  }, [session, router]);
+  }, [session, router, sendOffline]);
 
   // ==========================================
-  // ⛔ BLOCK RENDER UNTIL SESSION IS READY
+  // 🔔 REALTIME (SAFE)
+  // ==========================================
+  useRealtimeTest(
+    status === "authenticated" && !!session?.user
+  );
+
+  // ==========================================
+  // ⛔ BLOCK RENDER UNTIL READY
   // ==========================================
   if (!session?.user) return null;
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Idle detection */}
       <AutoLogout />
 
-      {/* SIDEBAR + HEADER */}
       <div className="sidebar-scroll w-64 h-screen fixed left-0 top-0 border-r border-gray-200 bg-white">
         {session.user.role === "Admin" ? (
           <TopHeaderAdmin />
@@ -164,7 +182,6 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
         )}
       </div>
 
-      {/* CONTENT */}
       <main className="ml-64 p-6 bg-white">
         {children}
       </main>

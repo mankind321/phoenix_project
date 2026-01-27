@@ -24,7 +24,8 @@ export const authOptions: AuthOptions = {
         const ip =
           req?.headers?.["x-forwarded-for"]?.toString()?.split(",")[0] ??
           "Unknown";
-        const userAgent = req?.headers?.["user-agent"]?.toString() ?? "Unknown";
+        const userAgent =
+          req?.headers?.["user-agent"]?.toString() ?? "Unknown";
 
         // ----------------------------------------
         // 1️⃣ Validate credentials
@@ -40,18 +41,27 @@ export const authOptions: AuthOptions = {
             ipAddress: ip,
             userAgent,
           });
-
           return null;
         }
 
         // ----------------------------------------
-        // 2️⃣ Fetch user
+        // 2️⃣ Fetch user record
         // ----------------------------------------
         const { data: userRecord } = await supabase
           .from("useraccountaccess")
-          .select(
-            "userid, username, role, password_hash, license_number, profile_image_url, first_name, middle_name, last_name, accountid, manager_id"
-          )
+          .select(`
+            userid,
+            username,
+            role,
+            password_hash,
+            license_number,
+            profile_image_url,
+            first_name,
+            middle_name,
+            last_name,
+            accountid,
+            manager_id
+          `)
           .eq("username", credentials.username)
           .maybeSingle();
 
@@ -66,7 +76,6 @@ export const authOptions: AuthOptions = {
             ipAddress: ip,
             userAgent,
           });
-
           return null;
         }
 
@@ -89,12 +98,11 @@ export const authOptions: AuthOptions = {
             ipAddress: ip,
             userAgent,
           });
-
           return null;
         }
 
         // ----------------------------------------
-        // 4️⃣ Check if already logged-in
+        // 4️⃣ Prevent multiple active logins
         // ----------------------------------------
         const { data: statusRow } = await supabase
           .from("accounts_status")
@@ -110,7 +118,7 @@ export const authOptions: AuthOptions = {
         }
 
         // ----------------------------------------
-        // 5️⃣ LOGIN SUCCESS — write audit trail
+        // 5️⃣ Audit login success
         // ----------------------------------------
         await logAuditTrail({
           userId: userRecord.userid,
@@ -124,36 +132,27 @@ export const authOptions: AuthOptions = {
         });
 
         // ----------------------------------------
-        // 6️⃣ Set user online
+        // 6️⃣ Normalize profile image path
         // ----------------------------------------
-        await supabase
-          .from("accounts_status")
-          .update({ account_status: "online" })
-          .eq("account_id", userRecord.accountid)
-          .eq("username", userRecord.username);
-
-        // ----------------------------------------
-        // 7️⃣ Clean profile path
-        // ----------------------------------------
-        let cleanPath: string | undefined =
+        let cleanProfilePath: string | undefined =
           userRecord.profile_image_url ?? undefined;
 
-        if (cleanPath?.startsWith("http")) {
+        if (cleanProfilePath?.startsWith("http")) {
           try {
-            const url = new URL(cleanPath);
-            cleanPath = url.pathname.split("/").pop() ?? undefined;
+            const url = new URL(cleanProfilePath);
+            cleanProfilePath = url.pathname.split("/").pop();
           } catch {
-            cleanPath = undefined;
+            cleanProfilePath = undefined;
           }
         }
 
         // ----------------------------------------
-        // 8️⃣ Create session_id here
+        // 7️⃣ Generate session identifier
         // ----------------------------------------
         const session_id = randomUUID();
 
         // ----------------------------------------
-        // 9️⃣ Return user object including session_id
+        // 8️⃣ Return user object
         // ----------------------------------------
         return {
           id: userRecord.userid,
@@ -163,38 +162,45 @@ export const authOptions: AuthOptions = {
           middleName: userRecord.middle_name ?? "",
           lastName: userRecord.last_name ?? "",
           licenseNumber: userRecord.license_number ?? "",
-          profileImageUrl: cleanPath,
+          profileImageUrl: cleanProfilePath,
           accountId: userRecord.accountid,
           managerId: userRecord.manager_id,
-          session_id, // << NEW
+          session_id,
         };
       },
     }),
   ],
 
+  // ----------------------------------------
+  // 🔐 Session Strategy
+  // ----------------------------------------
   session: { strategy: "jwt" },
 
+  // ----------------------------------------
+  // 🔁 Callbacks
+  // ----------------------------------------
   callbacks: {
-    // Save user + session_id to JWT
     async jwt({ token, user }) {
       if (user) {
         token.user = user;
-        token.session_id = (user as any).session_id; // << NEW
+        token.session_id = (user as any).session_id;
       }
       return token;
     },
 
-    // Expose session_id to FE
     async session({ session, token }) {
       session.user = token.user as any;
-      session.session_id = token.session_id; // << NEW
+      session.session_id = token.session_id;
       return session;
     },
   },
 
-  pages: { 
+  // ----------------------------------------
+  // 🧭 Pages
+  // ----------------------------------------
+  pages: {
     signIn: "/login",
-    error: "/login"
+    error: "/login",
   },
 
   secret: process.env.NEXTAUTH_SECRET,

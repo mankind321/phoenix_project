@@ -197,7 +197,7 @@ export default function PropertyCardTable() {
 
       if (json.activeLease) {
         toast.error(
-          "This property has an active lease. Status update not allowed."
+          "This property has an active lease. Status update not allowed.",
         );
         return;
       }
@@ -284,7 +284,7 @@ export default function PropertyCardTable() {
 
     const bounds = new google.maps.LatLngBounds();
     withCoords.forEach((p) =>
-      bounds.extend({ lat: p.latitude!, lng: p.longitude! })
+      bounds.extend({ lat: p.latitude!, lng: p.longitude! }),
     );
 
     map.fitBounds(bounds);
@@ -386,7 +386,7 @@ export default function PropertyCardTable() {
                           <span className="font-medium">
                             {p.price
                               ? `$${p.price.toLocaleString()}`
-                              : p.price_usd ?? "—"}
+                              : (p.price_usd ?? "—")}
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -421,7 +421,7 @@ export default function PropertyCardTable() {
                       >
                         View Details
                       </Button>
-                      <Can role={["Admin","Manager"]}>
+                      <Can role={["Admin", "Manager"]}>
                         <Button
                           size="sm"
                           variant="outline"
@@ -451,6 +451,7 @@ export default function PropertyCardTable() {
               <Button
                 variant="outline"
                 size="sm"
+                aria-label="Previous page"
                 disabled={page === 1}
                 onClick={() => setPage(page - 1)}
               >
@@ -460,6 +461,7 @@ export default function PropertyCardTable() {
               <Button
                 variant="outline"
                 size="sm"
+                aria-label="Next page"
                 disabled={page >= totalPages}
                 onClick={() => setPage(page + 1)}
               >
