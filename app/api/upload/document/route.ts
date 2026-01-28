@@ -66,6 +66,8 @@ export async function POST(req: Request) {
       );
     }
 
+     console.log(failedDoc);
+
     if (failedDoc) {
       return NextResponse.json(
         {
@@ -76,6 +78,8 @@ export async function POST(req: Request) {
         { status: 409 } // Conflict
       );
     }
+
+   
 
     // ----------------------------------------------
     // 3️⃣ Continue normal upload flow

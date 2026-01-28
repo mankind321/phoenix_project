@@ -18,7 +18,7 @@ import { Storage } from "@google-cloud/storage";
 function createRlsClient(headers: Record<string, string>) {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!, // REQUIRED for header-based RLS
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       db: { schema: "api" },
       global: { headers },
@@ -58,7 +58,7 @@ async function getSignedUrl(path: string): Promise<string | null> {
 }
 
 // ----------------------------------------------
-// 📌 GET — EVERY USER CAN ACCESS PROPERTY DETAILS
+// 📌 GET — PROPERTY DETAILS
 // ----------------------------------------------
 export async function GET(
   req: Request,
@@ -90,40 +90,44 @@ export async function GET(
       "x-account-id": session.user.accountId ?? "",
     };
 
-    // 3️⃣ Supabase RLS client
+    // 3️⃣ Supabase client
     const supabase = createRlsClient(rlsHeaders);
 
     // ----------------------------------------------
-    // 4️⃣ Fetch PROPERTY
+    // 4️⃣ Fetch PROPERTY (SAFE)
     // ----------------------------------------------
-    const { data: property, error: propertyError } = await supabase
+    const { data: property } = await supabase
       .from("property")
       .select("*")
       .eq("property_id", propertyId)
-      .single();
+      .maybeSingle();
 
-    if (propertyError) throw propertyError;
-
-    // ----------------------------------------------
-    // 5️⃣ Fetch ACTIVE leases
-    // ----------------------------------------------
-    const { data: activeLeases } = await supabase
-      .from("lease")
-      .select("*")
-      .eq("property_id", propertyId)
-      .eq("status", "active");
+    if (!property) {
+      return NextResponse.json(
+        { success: false, message: "Property not found" },
+        { status: 404 }
+      );
+    }
 
     // ----------------------------------------------
-    // 6️⃣ Fetch EXPIRED leases
+    // 5️⃣ Fetch leases
     // ----------------------------------------------
-    const { data: expiredLeases } = await supabase
-      .from("lease")
-      .select("*")
-      .eq("property_id", propertyId)
-      .eq("status", "expired");
+    const [{ data: activeLeases }, { data: expiredLeases }] =
+      await Promise.all([
+        supabase
+          .from("lease")
+          .select("*")
+          .eq("property_id", propertyId)
+          .eq("status", "active"),
+        supabase
+          .from("lease")
+          .select("*")
+          .eq("property_id", propertyId)
+          .eq("status", "expired"),
+      ]);
 
     // ----------------------------------------------
-    // 7️⃣ Fetch ONLY images from document table
+    // 6️⃣ Fetch images
     // ----------------------------------------------
     const { data: documents, error: documentError } = await supabase
       .from("document")
@@ -134,8 +138,15 @@ export async function GET(
 
     if (documentError) throw documentError;
 
+    const signedDocuments = await Promise.all(
+      (documents ?? []).map(async (doc) => ({
+        ...doc,
+        file_url: await getSignedUrl(doc.file_url),
+      }))
+    );
+
     // ----------------------------------------------
-    // 7️⃣ Fetch ONLY images from document table
+    // 7️⃣ Fetch contacts
     // ----------------------------------------------
     const { data: contacts, error: contactError } = await supabase
       .from("contact_with_assignment")
@@ -146,36 +157,27 @@ export async function GET(
     if (contactError) throw contactError;
 
     // ----------------------------------------------
-    // 8️⃣ Generate SIGNED URLs
-    // ----------------------------------------------
-    const signedDocuments = await Promise.all(
-      (documents ?? []).map(async (doc) => ({
-        ...doc,
-        file_url: await getSignedUrl(doc.file_url),
-      }))
-    );
-
-    // ----------------------------------------------
-    // 7️⃣ Fetch ONLY images from document table
+    // 8️⃣ Fetch latest document (OPTIONAL)
     // ----------------------------------------------
     const { data: documentFiles, error: documentFilesError } = await supabase
       .from("document")
       .select("file_url, doc_type")
       .eq("property_id", propertyId)
-      .in("doc_type", ["Brochure", "Property Brochure"])
       .order("created_at", { ascending: false })
       .limit(1)
-      .single(); // 👈 MUST be called
+      .maybeSingle();
 
     if (documentFilesError) throw documentFilesError;
 
-    const signedDocumentFiles = {
-      ...documentFiles,
-      file_url: await getSignedUrl(documentFiles.file_url),
-    };
+    const signedDocumentFiles = documentFiles
+      ? {
+          ...documentFiles,
+          file_url: await getSignedUrl(documentFiles.file_url),
+        }
+      : null;
 
     // ----------------------------------------------
-    // 9️⃣ Audit Log
+    // 9️⃣ Audit log
     // ----------------------------------------------
     await logAuditTrail({
       userId: session.user.id,
@@ -189,7 +191,7 @@ export async function GET(
     });
 
     // ----------------------------------------------
-    // 🔟 Return Full Response
+    // 🔟 Response
     // ----------------------------------------------
     return NextResponse.json({
       success: true,
@@ -201,7 +203,7 @@ export async function GET(
         },
         documents: signedDocuments,
         documentFiles: signedDocumentFiles,
-        contacts: contacts,
+        contacts,
       },
     });
   } catch (err: any) {
@@ -214,7 +216,7 @@ export async function GET(
 }
 
 // ----------------------------------------------
-// ❌ DELETE — DELETE PROPERTY BY ID
+// ❌ DELETE — PROPERTY
 // ----------------------------------------------
 export async function DELETE(
   req: Request,
@@ -230,7 +232,6 @@ export async function DELETE(
       );
     }
 
-    // 1️⃣ Validate session
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json(
@@ -239,26 +240,24 @@ export async function DELETE(
       );
     }
 
-    // 2️⃣ Build RLS headers
     const rlsHeaders = {
       "x-app-role": session.user.role,
       "x-user-id": session.user.id,
       "x-account-id": session.user.accountId ?? "",
     };
 
-    // 3️⃣ Supabase RLS client
     const supabase = createRlsClient(rlsHeaders);
 
     // ----------------------------------------------
-    // 4️⃣ Fetch property (for audit logging)
+    // Fetch property safely
     // ----------------------------------------------
-    const { data: property, error: fetchError } = await supabase
+    const { data: property } = await supabase
       .from("property")
       .select("property_id, name")
       .eq("property_id", propertyId)
-      .single();
+      .maybeSingle();
 
-    if (fetchError || !property) {
+    if (!property) {
       return NextResponse.json(
         { success: false, message: "Property not found" },
         { status: 404 }
@@ -266,7 +265,7 @@ export async function DELETE(
     }
 
     // ----------------------------------------------
-    // 5️⃣ Delete property
+    // Delete
     // ----------------------------------------------
     const { error: deleteError } = await supabase
       .from("property")
@@ -275,9 +274,6 @@ export async function DELETE(
 
     if (deleteError) throw deleteError;
 
-    // ----------------------------------------------
-    // 6️⃣ Audit Log
-    // ----------------------------------------------
     await logAuditTrail({
       userId: session.user.id,
       username: session.user.username,
@@ -289,9 +285,6 @@ export async function DELETE(
       userAgent: req.headers.get("user-agent") ?? "Unknown",
     });
 
-    // ----------------------------------------------
-    // 7️⃣ Success Response
-    // ----------------------------------------------
     return NextResponse.json({
       success: true,
       message: "Property deleted successfully",
@@ -304,4 +297,3 @@ export async function DELETE(
     );
   }
 }
-

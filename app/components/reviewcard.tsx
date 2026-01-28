@@ -110,7 +110,7 @@ export default function ReviewPropertyListPage() {
         // ❌ REJECT FLOW → DELETE PROPERTY ONLY
         // -------------------------------------------------------
         if (pendingAction === "reject") {
-          const deleteRes = await fetch(`/api/property/${selectedId}`, {
+          const deleteRes = await fetch(`/api/properties/${selectedId}`, {
             method: "DELETE",
           });
 

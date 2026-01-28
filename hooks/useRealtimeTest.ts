@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -18,79 +19,126 @@ type DocumentRegistryRow = {
 
 export function useRealtimeTest(enabled: boolean) {
   const { data: session } = useSession();
+
   const subscribedRef = useRef(false);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const supabaseRef = useRef<any>(null);
 
   useEffect(() => {
     const userId = session?.user?.id;
+
+    console.group("[realtime] useEffect");
+    console.log("enabled:", enabled);
+    console.log("userId:", userId);
+    console.log("already subscribed:", subscribedRef.current);
+    console.groupEnd();
+
     if (!enabled || !userId || subscribedRef.current) return;
 
-    subscribedRef.current = true;
-
-    let channel: RealtimeChannel | null = null;
-    let supabase: any;
+    let cancelled = false;
 
     async function init() {
-      const res = await fetch("/api/realtime-token", { method: "POST" });
-      const json = await res.json();
+      console.group("[realtime] init");
 
-      if (!json.success) {
-        console.error("[realtime] token failed", json);
-        return;
-      }
+      try {
+        console.log("[realtime] requesting token...");
+        const res = await fetch("/api/realtime-token", { method: "POST" });
+        const json = await res.json();
+        console.log("[realtime] token response:", json);
 
-      supabase = createRealtimeClient(json.access_token);
+        if (!json.success) throw new Error("Realtime token failed");
 
-      channel = supabase
-        .channel(`document-extraction-alerts:${userId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "document_registry",
-            // ✅ server-side filter (uploader only)
-            filter: `user_id=eq.${userId}`,
-          },
-          (payload: RealtimePostgresInsertPayload<DocumentRegistryRow>) => {
-            const row = payload.new;
+        console.log("[realtime] creating realtime client");
+        const supabase = createRealtimeClient(json.access_token);
+        supabaseRef.current = supabase;
 
-            // 🔒 Absolute safety check
-            if (row.user_id !== userId) return;
+        console.log("[realtime] creating channel");
+        const channel = supabase
+          .channel(`document-extraction-alerts:${userId}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "INSERT",
+              schema: "public",
+              table: "document_registry",
+              filter: `user_id=eq.${userId}`,
+            },
+            (payload: RealtimePostgresInsertPayload<DocumentRegistryRow>) => {
+              console.group("[realtime] postgres_changes");
+              console.log("payload:", payload);
+              console.log("new row:", payload.new);
+              console.groupEnd();
 
-            // ✅ STABLE TOAST ID (prevents duplicates)
-            const toastId = `doc-${row.user_id}-${row.file_name}-${row.extraction_status}`;
+              const row = payload.new;
+              if (row.user_id !== userId) {
+                console.warn("[realtime] user_id mismatch", {
+                  expected: userId,
+                  actual: row.user_id,
+                });
+                return;
+              }
 
-            if (row.extraction_status === "PASSED") {
-              toast.success(
-                `Data extraction for "${row.file_name ?? "document"}" has been successfully completed and forwarded to the Review page for evaluation.`,
-                {
-                  id: toastId,
-                  duration: 15_000,
-                }
-              );
-            } else if (row.extraction_status === "FAILED") {
-              toast.error(
-                `The extraction process for "${row.file_name ?? "document"}" was unsuccessful. Please refer to the Error Monitoring page to investigate and resolve the issue.`,
-                {
-                  id: toastId,
-                  duration: 15_000,
-                }
-              );
+              const toastId = `doc-${row.user_id}-${row.file_name}-${row.extraction_status}`;
+
+              if (row.extraction_status === "PASSED") {
+                toast.success(
+                  `Data extraction for "${row.file_name ?? "document"}" has been successfully completed and forwarded to the Review page for evaluation.`,
+                  { id: toastId, duration: 30_000 }
+                );
+              } else if (row.extraction_status === "FAILED") {
+                toast.error(
+                  `The extraction process for "${row.file_name ?? "document"}" was unsuccessful. Please refer to the Error Monitoring page to investigate and resolve the issue.`,
+                  { id: toastId, duration: 30_000 }
+                );
+              }
             }
-          }
-        )
-        .subscribe((status: RealtimeChannel["state"]) => {
-          console.log("[realtime] status:", status);
-        });
+          )
+          .subscribe((status, err) => {
+            console.log("[realtime] channel status:", status);
+
+            if (err) {
+              console.error("[realtime] channel error:", err);
+            }
+
+            if (status === "SUBSCRIBED") {
+              console.log("[realtime] subscribed successfully");
+              subscribedRef.current = true;
+            }
+
+            if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+              console.error("[realtime] channel failed:", status);
+              subscribedRef.current = false;
+            }
+          });
+
+        channelRef.current = channel;
+        console.log("[realtime] channel reference stored");
+      } catch (err) {
+        console.error("[realtime] init failed", err);
+        subscribedRef.current = false;
+      } finally {
+        console.groupEnd();
+      }
     }
 
     init();
 
     return () => {
+      console.group("[realtime] cleanup");
+      cancelled = true;
+
       subscribedRef.current = false;
-      if (supabase && channel) {
-        supabase.removeChannel(channel);
+
+      if (supabaseRef.current && channelRef.current) {
+        console.log("[realtime] removing channel");
+        supabaseRef.current.removeChannel(channelRef.current);
+      } else {
+        console.log("[realtime] no channel to remove");
       }
+
+      channelRef.current = null;
+      supabaseRef.current = null;
+      console.groupEnd();
     };
   }, [enabled, session?.user?.id]);
 }

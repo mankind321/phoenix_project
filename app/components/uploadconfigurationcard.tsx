@@ -193,7 +193,9 @@ export default function DocumentUploadSection() {
 
     setUploading(true);
     let completed = 0;
-    const failed: string[] = [];
+
+    // Track failures with reason
+    const failed: { file: string; reason: string }[] = [];
 
     const toastId = toast.loading(`Uploading 0 of ${files.length}...`);
 
@@ -201,7 +203,7 @@ export default function DocumentUploadSection() {
       try {
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("document_type", docType); // ✅ Correct field name for BE + Dispatcher
+        formData.append("document_type", docType);
 
         const res = await fetch("/api/upload/document", {
           method: "POST",
@@ -209,10 +211,32 @@ export default function DocumentUploadSection() {
         });
 
         if (!res.ok) {
-          failed.push(file.name);
+          let message = "Upload failed";
+
+          // Try to read backend error safely
+          try {
+            const contentType = res.headers.get("content-type") || "";
+
+            if (contentType.includes("application/json")) {
+              const data = await res.json();
+              message = data?.message || data?.error || JSON.stringify(data);
+            } else {
+              message = await res.text();
+            }
+          } catch {
+            // ignore parsing errors
+          }
+
+          failed.push({
+            file: file.name,
+            reason: message,
+          });
         }
-      } catch (err) {
-        failed.push(file.name);
+      } catch (err: any) {
+        failed.push({
+          file: file.name,
+          reason: err?.message || "Network error",
+        });
       }
 
       completed++;
@@ -226,9 +250,26 @@ export default function DocumentUploadSection() {
     setFiles([]);
     loadDocuments();
 
-    failed.length > 0
-      ? toast.error(`Failed: ${failed.join(", ")}`)
-      : toast.success("Upload complete!");
+    // -----------------------------------------
+    // FINAL TOAST RESULT
+    // -----------------------------------------
+    if (failed.length > 0) {
+      toast.error(
+        <>
+          <div className="font-semibold mb-1">Some uploads failed:</div>
+          <ul className="text-sm list-disc pl-4">
+            {failed.map((f, i) => (
+              <li key={i}>
+                <strong>{f.file}:</strong> {f.reason}
+              </li>
+            ))}
+          </ul>
+        </>,
+        { duration: 8000 },
+      );
+    } else {
+      toast.success("Upload complete!");
+    }
   }
 
   // ===============================
@@ -277,7 +318,7 @@ export default function DocumentUploadSection() {
   const handleDownload = useCallback((url: string) => {
     const clean = normalizeGsUrl(url);
     window.location.href = `/api/gcp/download?path=${encodeURIComponent(
-      clean
+      clean,
     )}`;
   }, []);
 
@@ -340,7 +381,7 @@ export default function DocumentUploadSection() {
         ),
       },
     ],
-    [handleDownload]
+    [handleDownload],
   );
 
   // Build table
@@ -387,8 +428,6 @@ export default function DocumentUploadSection() {
   // ===============================
   // 📌 UI (Upload + List)
   // ===============================
-  console.log("session:", session?.user);
-  console.log("reachedLinit:", reachedLimit, total);
   return (
     <div className="w-11/12 mx-auto mt-6 space-y-6">
       {/* HEADER */}
@@ -468,8 +507,8 @@ export default function DocumentUploadSection() {
                 {!docType
                   ? "Select a document type first."
                   : reachedLimit
-                  ? "Maximum of 10 uploaded documents reached."
-                  : "Drag & drop files or click to browse"}
+                    ? "Maximum of 10 uploaded documents reached."
+                    : "Drag & drop files or click to browse"}
               </p>
 
               <input
@@ -549,7 +588,7 @@ export default function DocumentUploadSection() {
                 className="pl-9 text-base h-10 rounded-full border border-gray-200 focus-visible:ring-0 shadow-none"
               />
             </div>
-            <div className="flex gap-3 mb-4">
+            <div className="flex gap-3 mb-4 mt-4">
               <Input
                 className="w-50"
                 type="date"
@@ -605,7 +644,7 @@ export default function DocumentUploadSection() {
                       <TableHead key={header.id}>
                         {flexRender(
                           header.column.columnDef.header,
-                          header.getContext()
+                          header.getContext(),
                         )}
                       </TableHead>
                     ))}
@@ -630,7 +669,7 @@ export default function DocumentUploadSection() {
                         <TableCell key={cell.id}>
                           {flexRender(
                             cell.column.columnDef.cell,
-                            cell.getContext()
+                            cell.getContext(),
                           )}
                         </TableCell>
                       ))}

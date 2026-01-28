@@ -9,21 +9,52 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
+  TooltipProps,
 } from "recharts";
+import { ReactNode } from "react";
 
 export default function LeaseExpirationChart({ data }: { data: any[] }) {
   // 🛡 SAFETY: Prevent Recharts from crashing
   const list = Array.isArray(data) ? data : [];
 
-  const formatDate = (d: string) =>
+  // --------------------------------------------
+  // Date formatting (string only)
+  // --------------------------------------------
+  const formatDateString = (d: string) =>
     new Date(d).toLocaleDateString("en-US", {
       month: "short",
       year: "numeric",
     });
 
+  // --------------------------------------------
+  // ✅ labelFormatter — ReactNode safe
+  // --------------------------------------------
+  const labelFormatter: TooltipProps<number, string>["labelFormatter"] = (
+    label: ReactNode
+  ) => {
+    if (typeof label === "string") {
+      return formatDateString(label);
+    }
+    return label;
+  };
+
+  // --------------------------------------------
+  // ✅ formatter — number | undefined safe
+  // --------------------------------------------
+  const valueFormatter: TooltipProps<number, string>["formatter"] = (
+    value,
+    name
+  ) => {
+    if (typeof value !== "number") return "";
+
+    return [`${value}`, name];
+  };
+
   return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border">
-      <h2 className="text-md font-semibold mb-4">Lease Expiration Trend</h2>
+      <h2 className="text-md font-semibold mb-4">
+        Lease Expiration Trend
+      </h2>
 
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
@@ -39,7 +70,9 @@ export default function LeaseExpirationChart({ data }: { data: any[] }) {
 
             <XAxis
               dataKey="month"
-              tickFormatter={formatDate}
+              tickFormatter={(v) =>
+                typeof v === "string" ? formatDateString(v) : v
+              }
               tick={{ fontSize: 12, fill: "#6b7280" }}
             />
 
@@ -55,13 +88,14 @@ export default function LeaseExpirationChart({ data }: { data: any[] }) {
                 borderRadius: "10px",
                 fontSize: "13px",
               }}
-              formatter={(value) => [`${value}`, "Expiring Leases"]}
-              labelFormatter={formatDate}
+              formatter={valueFormatter}
+              labelFormatter={labelFormatter}
             />
 
             <Line
               type="monotone"
               dataKey="expiring_count"
+              name="Expiring Leases"
               stroke="url(#leaseGradient)"
               strokeWidth={3}
               dot={{ r: 4, strokeWidth: 2, fill: "#ec4899" }}

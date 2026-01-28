@@ -11,9 +11,14 @@ import {
   Loader2,
   Cog,
 } from "lucide-react";
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectTrigger,
+  SelectContent,
+  SelectItem,
+  SelectValue,
+} from "@/components/ui/select";
 import { useSession } from "next-auth/react";
-
 
 interface AuditLog {
   id: number;
@@ -29,7 +34,6 @@ interface AuditLog {
   created_at: string;
   priority?: "low" | "medium" | "high";
 }
-
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
@@ -57,31 +61,29 @@ export default function AuditTrailDashboard() {
   const [fromDate, setFromDate] = useState<string | null>(null);
   const [toDate, setToDate] = useState<string | null>(null);
   const [datePreset, setDatePreset] = useState("custom");
- const [users, setUsers] = useState<
-  {
-    userId: number;
-    username: string;
-    role: string;
-    firstName: string | null;
-    middleName: string | null;
-    lastName: string | null;
-    fullName: string;
-  }[]
->([]);
-   
+  const [users, setUsers] = useState<
+    {
+      userId: number;
+      username: string;
+      role: string;
+      firstName: string | null;
+      middleName: string | null;
+      lastName: string | null;
+      fullName: string;
+    }[]
+  >([]);
 
   const { data: session } = useSession();
 
   async function loadData() {
-      const res = await fetch(`/api/audit-trail?page=1`, {
+    const res = await fetch(`/api/audit-trail?page=1`, {
       headers: {
         Authorization: `Bearer ${session?.user?.supabaseAccessToken}`,
       },
     });
-    return res
+    return res;
   }
   loadData().then(console.log);
-
 
   const applyDatePreset = (preset: string) => {
     const today = new Date();
@@ -167,11 +169,8 @@ export default function AuditTrailDashboard() {
     fetchUsers();
   }, []);
 
-  
-
   return (
     <div className="w-11/12 mx-auto mt-6 space-y-6">
-
       {/* ====================== */}
       {/* 🧭 FILTER SECTION (NO CARD) */}
       {/* ====================== */}
@@ -184,7 +183,8 @@ export default function AuditTrailDashboard() {
             </h2>
           </div>
           <p className="text-sm text-gray-500">
-            Log and review all user and system events for transparency and accountability.
+            Log and review all user and system events for transparency and
+            accountability.
           </p>
         </div>
 
@@ -202,41 +202,45 @@ export default function AuditTrailDashboard() {
           {/* ⚙️ Action Filter */}
           <div>
             <p className="text-sm font-medium text-gray-600 mb-1">Action</p>
-            <Select value={actionFilter} onValueChange={setActionFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Actions" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Actions</SelectItem>
-                <SelectItem value="CREATE">Create</SelectItem>
-                <SelectItem value="UPDATE">Update</SelectItem>
-                <SelectItem value="DELETE">Delete</SelectItem>
-                <SelectItem value="VIEW">View</SelectItem>
-                <SelectItem value="LOGIN">Login</SelectItem>
-                <SelectItem value="LOGOUT">Logout</SelectItem>
-                <SelectItem value="EXPORT">Export</SelectItem>
-                <SelectItem value="IMPORT">Import</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="mt-3">
+              <Select value={actionFilter} onValueChange={setActionFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Actions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Actions</SelectItem>
+                  <SelectItem value="CREATE">Create</SelectItem>
+                  <SelectItem value="UPDATE">Update</SelectItem>
+                  <SelectItem value="DELETE">Delete</SelectItem>
+                  <SelectItem value="VIEW">View</SelectItem>
+                  <SelectItem value="LOGIN">Login</SelectItem>
+                  <SelectItem value="LOGOUT">Logout</SelectItem>
+                  <SelectItem value="EXPORT">Export</SelectItem>
+                  <SelectItem value="IMPORT">Import</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* 👤 User Filter */}
           {session?.user?.role !== "Agent" && (
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">User</p>
-              <Select value={userFilter} onValueChange={setUserFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Users" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  {users.map((u) => (
-                    <SelectItem key={u.userId} value={String(u.userId)}>
-                      {u.fullName || u.username}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="mt-3">
+                <Select value={userFilter} onValueChange={setUserFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Users" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Users</SelectItem>
+                    {users.map((u) => (
+                      <SelectItem key={u.userId} value={String(u.userId)}>
+                        {u.fullName || u.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
 
@@ -252,25 +256,29 @@ export default function AuditTrailDashboard() {
 
           {/* 📅 Date Preset */}
           <div>
-            <p className="text-sm font-medium text-gray-600 mb-1">Date Filter</p>
-            <Select
-              value={datePreset}
-              onValueChange={(v) => {
-                setDatePreset(v);
-                applyDatePreset(v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="custom">Custom</SelectItem>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="last7">Last 7 Days</SelectItem>
-                <SelectItem value="thisMonth">This Month</SelectItem>
-              </SelectContent>
-            </Select>
+            <p className="text-sm font-medium text-gray-600 mb-1">
+              Date Filter
+            </p>
+            <div className="mt-3">
+              <Select
+                value={datePreset}
+                onValueChange={(v) => {
+                  setDatePreset(v);
+                  applyDatePreset(v);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">Custom</SelectItem>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="last7">Last 7 Days</SelectItem>
+                  <SelectItem value="thisMonth">This Month</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Custom Date Range */}
@@ -310,7 +318,9 @@ export default function AuditTrailDashboard() {
       <div>
         <div className="flex items-center gap-2 mb-4">
           <FileText className="w-5 h-5 text-gray-600" />
-          <h2 className="text-lg font-semibold text-gray-800">System Activity Log</h2>
+          <h2 className="text-lg font-semibold text-gray-800">
+            System Activity Log
+          </h2>
         </div>
 
         {isLoading ? (
@@ -318,7 +328,9 @@ export default function AuditTrailDashboard() {
             <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Loading logs...
           </div>
         ) : logs.length === 0 ? (
-          <p className="text-center text-gray-500 py-8">No audit records found.</p>
+          <p className="text-center text-gray-500 py-8">
+            No audit records found.
+          </p>
         ) : (
           <div className="space-y-4">
             {logs.map((log) => {
@@ -336,10 +348,10 @@ export default function AuditTrailDashboard() {
                           log.action_type === "DELETE"
                             ? "bg-red-100 text-red-500"
                             : log.action_type === "UPDATE"
-                            ? "bg-yellow-100 text-yellow-600"
-                            : log.action_type === "CREATE"
-                            ? "bg-green-100 text-green-600"
-                            : "bg-blue-100 text-blue-600"
+                              ? "bg-yellow-100 text-yellow-600"
+                              : log.action_type === "CREATE"
+                                ? "bg-green-100 text-green-600"
+                                : "bg-blue-100 text-blue-600"
                         } flex items-center justify-center`}
                       >
                         <FileText className="w-4 h-4" />
@@ -352,18 +364,20 @@ export default function AuditTrailDashboard() {
 
                         <p className="text-xs text-gray-500 mt-1">
                           {log.username} ({log.role}) •{" "}
-                          {new Date(log.created_at).toLocaleString()} • IP: {log.ip_address}
+                          {new Date(log.created_at).toLocaleString()} • IP:{" "}
+                          {log.ip_address}
                         </p>
 
                         <p className="text-xs text-gray-500">
-                          Entity: {log.table_name} — Record ID: {log.record_id ?? "N/A"}
+                          Entity: {log.table_name} — Record ID:{" "}
+                          {log.record_id ?? "N/A"}
                         </p>
                       </div>
                     </div>
 
                     <span
                       className={`text-xs px-2 py-1 rounded-full font-medium ${getPriorityColor(
-                        log.priority || "low"
+                        log.priority || "low",
                       )}`}
                     >
                       {log.priority || "low"}
@@ -413,7 +427,11 @@ export default function AuditTrailDashboard() {
 
             {/* Pagination */}
             <div className="flex justify-between items-center mt-6 border-t pt-4">
-              <Button variant="outline" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              <Button
+                variant="outline"
+                disabled={page <= 1}
+                onClick={() => setPage(page - 1)}
+              >
                 ⬅ Prev
               </Button>
 
