@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
@@ -82,13 +81,13 @@ export default function DocumentUploadSection() {
   const maxFiles = 10;
 
   const allowedMimeTypes = [
-    "text/plain",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/pdf",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "text/csv",
+
+    // Images
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
   ];
 
   const FILENAME_REGEX = /^[a-zA-Z0-9]+_[a-zA-Z0-9]+\.[a-zA-Z0-9]+$/;
@@ -462,10 +461,6 @@ export default function DocumentUploadSection() {
 
             {/* Document Type Dropdown */}
             <div>
-              <p className="text-xs text-gray-400 mt-2">
-                Filename format required: <code>first_second.filetype</code>
-              </p>
-
               <label className="text-sm font-medium text-gray-700 mr-3">
                 Document Type <span className="text-red-500">*</span>
               </label>

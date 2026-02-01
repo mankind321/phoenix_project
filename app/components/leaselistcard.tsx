@@ -150,7 +150,7 @@ export default function LeaseListPage() {
 
           <Button
             onClick={applySearch}
-            className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+            className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 mt-2"
           >
             <SearchIcon className="w-4 h-4" />
             Search

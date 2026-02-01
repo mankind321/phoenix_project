@@ -245,8 +245,6 @@ export default function UserTable() {
       },
       { accessorKey: "email", header: "Email" },
       { accessorKey: "mobile", header: "Mobile" },
-      { accessorKey: "license_number", header: "License #" },
-      { accessorKey: "license_expiration", header: "Expiration" },
       { accessorKey: "username", header: "Username" },
       { accessorKey: "manager", header: "Manager" },
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -14,14 +15,14 @@ interface UserFormData {
   firstName: string;
   middleName: string;
   lastName: string;
-  dateOfBirth: string;
-  gender: string;
+  dateOfBirth: string | null;
+  gender: string | null;
   email: string;
   mobile: string;
-  address: string;
-  licenseNumber: string;
-  licenseIssuedBy: string;
-  licenseExpiration: string;
+  address: string | null;
+  licenseNumber: string | null;
+  licenseIssuedBy: string | null;
+  licenseExpiration: string | null;
   profileImage: File | null;
   profileImageUrl: string;
 }
@@ -29,44 +30,46 @@ interface UserFormData {
 export default function ProfilePage() {
   const { data: session, update } = useSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [loading, setLoading] = useState(true);
+  const [submitted, setSubmitted] = useState(false);
+
   const [formData, setFormData] = useState<UserFormData>({
     firstName: "",
     middleName: "",
     lastName: "",
-    dateOfBirth: "",
-    gender: "",
+    dateOfBirth: null,
+    gender: null,
     email: "",
     mobile: "",
-    address: "",
-    licenseNumber: "",
-    licenseIssuedBy: "",
-    licenseExpiration: "",
+    address: null,
+    licenseNumber: null,
+    licenseIssuedBy: null,
+    licenseExpiration: null,
     profileImage: null,
-    profileImageUrl: "/avatar.jpg"
+    profileImageUrl: "/avatar.jpg",
   });
 
   const fetchSignedImageUrl = async (path: string) => {
     try {
-      const res = await fetch(`/api/gcp/getSignedUrl?path=${encodeURIComponent(path)}`);
+      const res = await fetch(
+        `/api/gcp/getSignedUrl?path=${encodeURIComponent(path)}`
+      );
       const json = await res.json();
-      if (json.success && json.url) {
-        return json.url;
-      }
-      return "/avatar.jpg";
+      return json.success && json.url ? json.url : "/avatar.jpg";
     } catch {
       return "/avatar.jpg";
     }
   };
 
+  /* ================= LOAD PROFILE ================= */
 
-  // ✅ Fetch profile from DB
   useEffect(() => {
     const loadProfile = async () => {
       if (!session?.user?.id) return;
 
       try {
-        const res = await fetch(`/api/users/profile`,{cache: "no-store"});
+        const res = await fetch(`/api/users/profile`, { cache: "no-store" });
         const json = await res.json();
         if (!json.success) throw new Error(json.message);
         const u = json.user;
@@ -76,19 +79,19 @@ export default function ProfilePage() {
           avatarUrl = await fetchSignedImageUrl(u.profile_image_url);
         }
 
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
           firstName: u.first_name ?? "",
           middleName: u.middle_name ?? "",
           lastName: u.last_name ?? "",
-          dateOfBirth: u.date_of_birth ?? "",
-          gender: u.gender ?? "",
+          dateOfBirth: u.date_of_birth ?? null,
+          gender: u.gender ?? null,
           email: u.email ?? "",
           mobile: u.mobile ?? "",
-          address: u.address ?? "",
-          licenseNumber: u.license_number ?? "",
-          licenseIssuedBy: u.license_issued_by ?? "",
-          licenseExpiration: u.license_expiration ?? "",
+          address: u.address ?? null,
+          licenseNumber: u.license_number ?? null,
+          licenseIssuedBy: u.license_issued_by ?? null,
+          licenseExpiration: u.license_expiration ?? null,
           profileImageUrl: avatarUrl,
         }));
       } catch (err: any) {
@@ -101,32 +104,57 @@ export default function ProfilePage() {
     loadProfile();
   }, [session]);
 
-  // ✅ Handle Input Change
+  /* ================= HELPERS ================= */
+
+  const inputErrorClass = (hasError: boolean) =>
+    hasError && submitted
+      ? "border-red-500 focus:ring-red-500 focus:border-red-500"
+      : "";
+
+  /* ================= HANDLERS ================= */
+
   const handleChange = (e: any) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ✅ File Handler
   const handleFileChange = (e: any) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setFormData(prev => ({
+
+    setFormData((prev) => ({
       ...prev,
       profileImage: file,
-      profileImageUrl: URL.createObjectURL(file)
+      profileImageUrl: URL.createObjectURL(file),
     }));
   };
 
-  // ✅ Submit Profile Update
+  /* ================= SUBMIT ================= */
+
   const handleSubmit = async () => {
+    setSubmitted(true);
+
+    const requiredErrors = {
+      firstName: !formData.firstName.trim(),
+      lastName: !formData.lastName.trim(),
+      email: !formData.email.trim(),
+      mobile: !formData.mobile.trim(),
+    };
+
+    if (Object.values(requiredErrors).some(Boolean)) {
+      toast.error("Please fill out all required fields.");
+      return;
+    }
+
     try {
-      setLoading(true); // only show spinner on button, not replace page
+      setLoading(true);
 
       let finalImagePath = formData.profileImageUrl;
+
       if (formData.profileImage) {
         const fd = new FormData();
         fd.append("file", formData.profileImage);
+
         const upload = await fetch("/api/upload/profile", {
           method: "POST",
           body: fd,
@@ -134,16 +162,23 @@ export default function ProfilePage() {
 
         const uploadJson = await upload.json();
         if (!uploadJson.success) throw new Error(uploadJson.message);
+
         finalImagePath = uploadJson.path;
       }
 
       const payload = {
         formData: {
           ...formData,
+          dateOfBirth: formData.dateOfBirth || null,
+          gender: formData.gender || null,
+          address: formData.address || null,
+          licenseNumber: formData.licenseNumber || null,
+          licenseIssuedBy: formData.licenseIssuedBy || null,
+          licenseExpiration: formData.licenseExpiration || null,
           profileImageUrl: finalImagePath,
         },
       };
-      console.log("payload:",payload);
+
       const res = await fetch("/api/users/profile/update", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -154,15 +189,6 @@ export default function ProfilePage() {
       if (!json.success) throw new Error(json.message);
 
       toast.success("Profile updated successfully!");
-
-      // ✅ Update UI locally without triggering component reload
-      setFormData(prev => ({
-        ...prev,
-        profileImage: null,
-        profileImageUrl: prev.profileImageUrl,
-      }));
-
-      // ✅ Force avatar refresh LATER, not during save
       await update();
     } catch (err: any) {
       toast.error(err.message || "Update failed");
@@ -177,8 +203,9 @@ export default function ProfilePage() {
 
   return (
     <div className="w-11/12 mx-auto mt-6 space-y-6">
-
-      <h2 className="text-2xl font-semibold text-center mb-6">Update Profile</h2>
+      <h2 className="text-2xl font-semibold text-center mb-6">
+        Update Profile
+      </h2>
 
       <form
         onSubmit={(e) => {
@@ -211,10 +238,11 @@ export default function ProfilePage() {
 
         {/* ----- PERSONAL INFO ----- */}
         <div className="space-y-4">
-          <p className="text-lg font-semibold border-b pb-2">Personal Information</p>
+          <p className="text-lg font-semibold border-b pb-2">
+            Personal Information
+          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* First Name */}
             <div>
               <Label htmlFor="firstName">First Name</Label>
               <div className="relative">
@@ -223,13 +251,14 @@ export default function ProfilePage() {
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleChange}
-                  className="pl-10"
+                  className={`pl-10 ${inputErrorClass(
+                    !formData.firstName.trim()
+                  )}`}
                 />
                 <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               </div>
             </div>
 
-            {/* Middle Name */}
             <div>
               <Label htmlFor="middleName">Middle Name</Label>
               <Input
@@ -240,7 +269,6 @@ export default function ProfilePage() {
               />
             </div>
 
-            {/* Last Name */}
             <div>
               <Label htmlFor="lastName">Last Name</Label>
               <Input
@@ -248,26 +276,22 @@ export default function ProfilePage() {
                 name="lastName"
                 value={formData.lastName}
                 onChange={handleChange}
-                required
+                className={inputErrorClass(!formData.lastName.trim())}
               />
             </div>
           </div>
 
-          {/* DOB + Gender */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* DOB + Gender (HIDDEN – RESTORED) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
             <div>
               <Label htmlFor="dateOfBirth">Date of Birth</Label>
-              <div className="relative">
-                <Input
-                  type="date"
-                  id="dateOfBirth"
-                  name="dateOfBirth"
-                  value={formData.dateOfBirth}
-                  onChange={handleChange}
-                  className="pl-10"
-                />
-                <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              </div>
+              <Input
+                type="date"
+                id="dateOfBirth"
+                name="dateOfBirth"
+                value={formData.dateOfBirth ?? ""}
+                onChange={handleChange}
+              />
             </div>
 
             <div>
@@ -275,9 +299,9 @@ export default function ProfilePage() {
               <select
                 id="gender"
                 name="gender"
-                value={formData.gender}
+                value={formData.gender ?? ""}
                 onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 mt-2 focus:ring-1 focus:ring-blue-500"
+                className="w-full border rounded-md px-3 py-2 mt-2"
               >
                 <option value="">Select Gender</option>
                 <option value="Male">Male</option>
@@ -286,9 +310,8 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Email + Mobile */}
+          {/* EMAIL + MOBILE */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Email */}
             <div>
               <Label htmlFor="email">Email</Label>
               <div className="relative">
@@ -298,13 +321,14 @@ export default function ProfilePage() {
                   type="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="pl-10"
+                  className={`pl-10 ${inputErrorClass(
+                    !formData.email.trim()
+                  )}`}
                 />
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               </div>
             </div>
 
-            {/* Mobile */}
             <div>
               <Label htmlFor="mobile">Mobile Number</Label>
               <div className="relative">
@@ -313,21 +337,23 @@ export default function ProfilePage() {
                   name="mobile"
                   value={formData.mobile}
                   onChange={handleChange}
-                  className="pl-10"
+                  className={`pl-10 ${inputErrorClass(
+                    !formData.mobile.trim()
+                  )}`}
                 />
                 <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
               </div>
             </div>
           </div>
 
-          {/* Address */}
-          <div>
+          {/* Address (HIDDEN – RESTORED) */}
+          <div className="hidden">
             <Label htmlFor="address">Residential Address</Label>
             <div className="relative">
               <Input
                 id="address"
                 name="address"
-                value={formData.address}
+                value={formData.address ?? ""}
                 onChange={handleChange}
                 className="pl-10"
               />
@@ -336,9 +362,11 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* ----- PROFESSIONAL INFO ----- */}
-        <div className="space-y-4">
-          <p className="text-lg font-semibold border-b pb-2">Professional Information</p>
+        {/* ----- PROFESSIONAL INFO (HIDDEN – RESTORED) ----- */}
+        <div className="space-y-4 hidden">
+          <p className="text-lg font-semibold border-b pb-2">
+            Professional Information
+          </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -346,7 +374,7 @@ export default function ProfilePage() {
               <Input
                 id="licenseNumber"
                 name="licenseNumber"
-                value={formData.licenseNumber}
+                value={formData.licenseNumber ?? ""}
                 onChange={handleChange}
               />
             </div>
@@ -356,7 +384,7 @@ export default function ProfilePage() {
               <Input
                 id="licenseIssuedBy"
                 name="licenseIssuedBy"
-                value={formData.licenseIssuedBy}
+                value={formData.licenseIssuedBy ?? ""}
                 onChange={handleChange}
               />
             </div>
@@ -367,14 +395,14 @@ export default function ProfilePage() {
                 type="date"
                 id="licenseExpiration"
                 name="licenseExpiration"
-                value={formData.licenseExpiration}
+                value={formData.licenseExpiration ?? ""}
                 onChange={handleChange}
               />
             </div>
           </div>
         </div>
 
-        {/* ----- SAVE BUTTON ----- */}
+        {/* SAVE BUTTON */}
         <Button
           type="submit"
           disabled={loading}
@@ -395,5 +423,4 @@ export default function ProfilePage() {
       </form>
     </div>
   );
-
 }

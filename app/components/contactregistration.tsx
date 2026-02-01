@@ -305,7 +305,7 @@ export default function ContactFormPage() {
             <div>
               <Label className="flex items-center gap-2">
                 <User className="h-4 w-4 text-gray-500" />
-                Broker Name
+                Broker Name <span className="text-red-500">*</span>
               </Label>
               <Input
                 name="broker_name"
@@ -319,7 +319,7 @@ export default function ContactFormPage() {
             <div>
               <Label className="flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-gray-500" />
-                Listing Company
+                Listing Company <span className="text-red-500">*</span>
               </Label>
               <Input
                 name="listing_company"
@@ -338,7 +338,7 @@ export default function ContactFormPage() {
             <div>
               <Label className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-gray-500" />
-                Phone
+                Phone <span className="text-red-500">*</span>
               </Label>
               <Input
                 name="phone"
@@ -352,7 +352,7 @@ export default function ContactFormPage() {
             <div>
               <Label className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-gray-500" />
-                Email
+                Email <span className="text-red-500">*</span>
               </Label>
               <Input
                 type="email"
@@ -367,7 +367,7 @@ export default function ContactFormPage() {
             <div>
               <Label className="flex items-center gap-2">
                 <Globe className="h-4 w-4 text-gray-500" />
-                Website
+                Website <span className="text-red-500">*</span>
               </Label>
               <Input
                 name="website"
