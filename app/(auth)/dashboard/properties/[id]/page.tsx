@@ -28,25 +28,6 @@ import {
   Download,
 } from "lucide-react";
 
-import Image from "next/image";
-
-// Carousel
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
-
-// Dialog (Zoom Feature)
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
-
 interface PropertyData {
   property: any;
   leases: {
@@ -103,11 +84,11 @@ export default function PropertyViewPage({
   if (!data)
     return (
       <p className="text-center mt-10 text-red-500">
-        Property not found or has been removed.
+        Property Information not found.
       </p>
     );
 
-  const { property, leases, documents, documentFiles, contacts } = data;
+  const { property, leases, documentFiles, contacts } = data;
 
   return (
     <div className="w-11/12 mx-auto mt-10 space-y-10">
@@ -118,72 +99,6 @@ export default function PropertyViewPage({
           Property Information
         </h1>
       </div>
-
-      {/* =======================================================
-          IMAGES (CAROUSEL + FULL RES ZOOM) — LIMITED TO 3
-      ======================================================= */}
-      {documents.length === 0 ? (
-        <div className="relative w-full max-w-3xl mx-auto h-60 md:h-80">
-          <Image
-            src="https://placehold.co/600x400.png?text=No+Image"
-            alt="No Image Available"
-            fill
-            className="object-cover bg-gray-200"
-            sizes="100vw"
-            placeholder="blur"
-            blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAQAAACENnwnAAAAD0lEQVR42mNgoBpgYGBgAAAAMgAB9O3bGAAAAABJRU5ErkJggg=="
-            unoptimized
-          />
-        </div>
-      ) : (
-        <Carousel className="w-full max-w-3xl mx-auto">
-          <CarouselContent>
-            {documents.slice(0, 3).map((doc, idx) => (
-              <CarouselItem key={idx}>
-                <div className="p-1">
-                  <div className="relative w-full h-60 md:h-80 overflow-hidden">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Image
-                          src={doc.file_url}
-                          alt={`Property Image ${idx + 1}`}
-                          fill
-                          className="object-cover rounded-md cursor-zoom-in"
-                          sizes="100vw"
-                          placeholder="blur"
-                          blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAQAAACENnwnAAAAD0lEQVR42mNgoBpgYGBgAAAAMgAB9O3bGAAAAABJRU5ErkJggg=="
-                          priority={idx === 0}
-                        />
-                      </DialogTrigger>
-
-                      {/* FULLSCREEN ZOOM */}
-                      <DialogContent className="bg-black rounded-lg p-2 w-[75vw] max-h-[75vh] max-w-none flex items-center justify-center">
-                        <DialogTitle className="sr-only">
-                          Image Preview
-                        </DialogTitle>
-
-                        <div className="max-w-full max-h-full overflow-auto">
-                          <Image
-                            src={doc.file_url}
-                            alt="Zoomed Image"
-                            unoptimized
-                            width={2000}
-                            height={2000}
-                            className="object-contain max-w-full max-h-[75vh]"
-                          />
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-
-          <CarouselPrevious />
-          <CarouselNext />
-        </Carousel>
-      )}
 
       {/* BASIC INFO */}
       <InfoSection icon={<Info />} title="Basic Information">

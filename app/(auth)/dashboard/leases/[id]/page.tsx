@@ -20,41 +20,20 @@ import {
   ClipboardList,
   DollarSign,
   FileText,
-  Info,
   User,
   Users,
   Download,
+  Pencil,
+  Save,
+  XCircle,
+  Info,
 } from "lucide-react";
+import { toast } from "sonner";
 
-/** interface LeaseData {
-  lease_id: string;
-  tenant: string;
-  landlord: string;
-  property_name: string;
-  property_address: string;
-  property_type: string;
-  property_landlord: string;
-
-  lease_start: string;
-  lease_end: string;
-  availability_date: string;
-
-  annual_rent: number;
-  rent_psf: number;
-  price: number;
-  price_usd: string;
-  annual_rent_usd: string;
-
-  comments: string;
-  file_url: string;
-
-  status?:string;
-}**/
-interface LeaseData{
-  lease: any,
-  contacts: any[]
+interface LeaseData {
+  lease: any;
+  contacts: any[];
 }
-
 
 export default function LeaseViewPage({
   params,
@@ -67,15 +46,24 @@ export default function LeaseViewPage({
   const [data, setData] = useState<LeaseData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load lease
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftLease, setDraftLease] = useState<any>(null);
+
+  // PROPERTY LIST
+  const [properties, setProperties] = useState<any[]>([]);
+  const [loadingProperties, setLoadingProperties] = useState(false);
+
+  const [saving, setSaving] = useState(false);
+
+  // ---------------- LOAD LEASE ----------------
   useEffect(() => {
     if (!leaseId) return;
 
     const fetchLease = async () => {
       try {
         const res = await fetch(`/api/lease/${leaseId}`);
-        const data = await res.json();
-        setData(data.data);
+        const json = await res.json();
+        setData(json.data);
       } catch (error) {
         console.error("Error loading lease:", error);
       } finally {
@@ -86,8 +74,120 @@ export default function LeaseViewPage({
     fetchLease();
   }, [leaseId]);
 
-  
+  useEffect(() => {
+    if (data?.lease) {
+      setDraftLease({ ...data.lease });
+    }
+  }, [data]);
 
+  // ---------------- LOAD PROPERTIES (EDIT MODE) ----------------
+  useEffect(() => {
+    if (!isEditing) return;
+
+    const loadProperties = async () => {
+      setLoadingProperties(true);
+      try {
+        const res = await fetch("/api/properties/list-2");
+        const json = await res.json();
+        if (json?.success) {
+          setProperties(json.items || []);
+        }
+      } catch (err) {
+        console.error("Failed to load properties", err);
+      } finally {
+        setLoadingProperties(false);
+      }
+    };
+
+    loadProperties();
+  }, [isEditing]);
+
+  // ---------------- ACTIONS ----------------
+  const handleEdit = () => {
+    setDraftLease({ ...data?.lease });
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setDraftLease({ ...data?.lease });
+    setIsEditing(false);
+  };
+
+  const handleSave = async () => {
+    if (saving) return;
+
+    try {
+      setSaving(true);
+
+      const dirtyPayload = buildDirtyPayload(data!.lease, draftLease);
+
+      // ✅ normalize comments
+      const normalizedDraftComments = normalizeNullableText(
+        draftLease.comments,
+      );
+      const normalizedOriginalComments = normalizeNullableText(
+        data!.lease.comments,
+      );
+
+      if (normalizedDraftComments !== normalizedOriginalComments) {
+        dirtyPayload.comments = normalizedDraftComments;
+      }
+
+      if (Object.keys(dirtyPayload).length === 0) {
+        toast.info("No changes to save");
+        return;
+      }
+
+      const res = await fetch(`/api/lease/${leaseId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(dirtyPayload),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        toast.error(json.message || "Failed to update lease");
+        return;
+      }
+
+      // optimistic success → merge only what was sent
+      setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              lease: { ...prev.lease, ...dirtyPayload },
+            }
+          : prev,
+      );
+
+      setIsEditing(false);
+      toast.success("Lease updated successfully");
+    } catch (err) {
+      console.error("PUT failed", err);
+      toast.error("Unexpected error while saving");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePropertyChange = (propertyId: string) => {
+    const selected = properties.find((p) => p.id === propertyId);
+    if (!selected) return;
+
+    setDraftLease({
+      ...draftLease,
+      property_id: selected.id, // ✅ REQUIRED
+      property_name: selected.property_name,
+      property_type: selected.property_type,
+      property_address: selected.property_address,
+      property_landlord: selected.property_landlord,
+    });
+  };
+
+  // ---------------- GUARDS ----------------
   if (loading)
     return <p className="text-center mt-10 text-gray-600">Loading lease...</p>;
 
@@ -97,69 +197,196 @@ export default function LeaseViewPage({
         Lease not found or has been removed.
       </p>
     );
-  
-    const { lease, contacts } = data;
+
+  if (!draftLease)
+    return (
+      <p className="text-center mt-10 text-gray-600">Preparing lease data…</p>
+    );
+
+  const { lease, contacts } = data;
 
   return (
     <div className="w-11/12 mx-auto mt-10 space-y-10">
-
-      {/* ========== PAGE TITLE ========== */}
-      <div className="text-center space-y-2 mb-5">
-        <h1 className="text-3xl font-semibold text-gray-900 flex items-center justify-center gap-2">
+      {/* HEADER */}
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-3xl font-semibold text-gray-900 flex items-center gap-2">
           <FileText className="w-7 h-7 text-blue-600" />
           Tenant Lease Information
         </h1>
+
+        <div className="flex items-center gap-3">
+          {!isEditing ? (
+            <Button
+              onClick={handleEdit}
+              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 px-4"
+            >
+              <Pencil className="w-4 h-4" />
+              Update
+            </Button>
+          ) : (
+            <>
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="bg-green-600 hover:bg-green-700 disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                onClick={handleCancel}
+                className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2 px-4"
+              >
+                <XCircle className="w-4 h-4" />
+                Cancel
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* ========== CONTENT SECTIONS ========== */}
-      <div className="space-y-10 mt-5">
+      {/* BASIC */}
+      <InfoSection icon={<User />} title="Basic Information">
+        <Grid2>
+          <InfoItem
+            label="Tenant"
+            value={isEditing ? draftLease.tenant : lease.tenant}
+            editable={isEditing}
+            onChange={(v) => setDraftLease({ ...draftLease, tenant: v })}
+          />
+          <InfoItem
+            label="Landlord"
+            value={isEditing ? draftLease.landlord : lease.landlord}
+            editable={isEditing}
+            onChange={(v) => setDraftLease({ ...draftLease, landlord: v })}
+          />
+        </Grid2>
+      </InfoSection>
 
-        {/* ---------------- BASIC ---------------- */}
-        <InfoSection icon={<User />} title="Basic Information">
-          <Grid2>
-            <InfoItem label="Tenant" value={lease.tenant} />
-            <InfoItem label="Landlord" value={lease.landlord} />
-          </Grid2>
-        </InfoSection>
+      {/* PROPERTY */}
+      <InfoSection icon={<Building2 />} title="Property Details">
+        <Grid2>
+          <div className="space-y-1">
+            <Label className="text-gray-700 font-medium">Property Name</Label>
 
-        {/* ---------------- PROPERTY ---------------- */}
-        <InfoSection icon={<Building2 />} title="Property Details">
-          <Grid2>
-            <InfoItem label="Property Name" value={lease.property_name} />
-            <InfoItem label="Property Type" value={lease.property_type} />
-            <InfoItem label="Property Address" value={lease.property_address} />
-            <InfoItem label="Property Landlord" value={lease.property_landlord} />
-          </Grid2>
-        </InfoSection>
+            {isEditing ? (
+              <select
+                value={
+                  properties.find(
+                    (p) => p.property_name === draftLease.property_name,
+                  )?.id || ""
+                }
+                onChange={(e) => handlePropertyChange(e.target.value)}
+                disabled={loadingProperties}
+                className="w-full border rounded-md px-3 py-2 text-sm"
+              >
+                <option value="">Select Property</option>
+                {properties.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.property_name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <p className="border rounded-md bg-gray-50 px-3 py-2 text-sm">
+                {lease.property_name || "—"}
+              </p>
+            )}
+          </div>
 
-        {/* ---------------- DATES ---------------- */}
-        <InfoSection icon={<CalendarDays />} title="Lease Dates">
-          <Grid2>
-            <InfoItem label="Start Date" value={lease.lease_start} />
-            <InfoItem label="End Date" value={lease.lease_end} />
-            <InfoItem label="Availability Date" value={lease.availability_date} />
-          </Grid2>
-        </InfoSection>
+          <InfoItem label="Property Type" value={draftLease.property_type} />
+          <InfoItem
+            label="Property Address"
+            value={draftLease.property_address}
+          />
+          <InfoItem
+            label="Property Landlord"
+            value={draftLease.property_landlord}
+          />
+        </Grid2>
+      </InfoSection>
 
-        {/* ---------------- FINANCIAL ---------------- */}
-        <InfoSection icon={<DollarSign />} title="Financial Information">
-          <Grid2>
-            <InfoItem label="Price" value={formatUSD(lease.price)} />
+      {/* DATES */}
+      <InfoSection icon={<CalendarDays />} title="Lease Dates">
+        <Grid2>
+          <InfoItem
+            label="Start Date"
+            type="date"
+            value={isEditing ? draftLease.lease_start : lease.lease_start}
+            editable={isEditing}
+            onChange={(v) => setDraftLease({ ...draftLease, lease_start: v })}
+          />
+          <InfoItem
+            label="End Date"
+            type="date"
+            value={isEditing ? draftLease.lease_end : lease.lease_end}
+            editable={isEditing}
+            onChange={(v) => setDraftLease({ ...draftLease, lease_end: v })}
+          />
+          <InfoItem
+            label="Availability Date"
+            type="date"
+            value={
+              isEditing ? draftLease.availability_date : lease.availability_date
+            }
+            editable={isEditing}
+            onChange={(v) =>
+              setDraftLease({ ...draftLease, availability_date: v })
+            }
+          />
+        </Grid2>
+      </InfoSection>
 
-            <InfoItem label="Current Annual Rent" value={formatUSD(lease.annual_rent)} />
+      {/* FINANCIAL */}
+      <InfoSection icon={<DollarSign />} title="Financial Information">
+        <Grid2>
+          <InfoItem
+            label="Price"
+            value={isEditing ? draftLease.price : formatUSD(lease.price)}
+            editable={isEditing}
+            onChange={(v) => setDraftLease({ ...draftLease, price: Number(v) })}
+          />
+          <InfoItem
+            label="Current Annual Rent"
+            value={
+              isEditing ? draftLease.annual_rent : formatUSD(lease.annual_rent)
+            }
+            editable={isEditing}
+            onChange={(v) =>
+              setDraftLease({ ...draftLease, annual_rent: Number(v) })
+            }
+          />
+          <InfoItem
+            label="Base Rent PSF"
+            value={isEditing ? draftLease.rent_psf : formatUSD(lease.rent_psf)}
+            editable={isEditing}
+            onChange={(v) =>
+              setDraftLease({ ...draftLease, rent_psf: Number(v) })
+            }
+          />
+          <InfoItem
+            label="Pass-TMRU (NNN) PSF"
+            value={
+              isEditing ? draftLease.pass_tmru : formatUSD(lease.pass_tmru)
+            }
+            editable={isEditing}
+            onChange={(v) =>
+              setDraftLease({ ...draftLease, pass_tmru: Number(v) })
+            }
+          />
+          <InfoItem
+            label="Net Operating Income (NOI)"
+            value={isEditing ? draftLease.noi : formatUSD(lease.noi)}
+            editable={isEditing}
+            onChange={(v) => setDraftLease({ ...draftLease, noi: Number(v) })}
+          />
+        </Grid2>
+      </InfoSection>
 
-            <InfoItem label="Base Rent PSF" value={formatUSD(lease.rent_psf)} />
-
-            <InfoItem label="Pass-TMRU (NNN) PSF" value={formatUSD(lease.pass_tmru)} />
-
-            <InfoItem label="Net Operating Income (NOI)" value={formatUSD(lease.noi)} />
-          </Grid2>
-        </InfoSection>
-
-        {/* CONTACTS */}
+      {/* BROKERS */}
       <InfoSection icon={<Users />} title="Brokers">
         {contacts.length === 0 ? (
-          <p className="text-gray-500">No Brokers assigned to this property.</p>
+          <p className="text-gray-500">No Brokers assigned.</p>
         ) : (
           <Table>
             <TableHeader>
@@ -172,7 +399,6 @@ export default function LeaseViewPage({
                 <TableHead>Comments</TableHead>
               </TableRow>
             </TableHeader>
-
             <TableBody>
               {contacts.map((c: any) => (
                 <TableRow key={c.contact_assignment_id}>
@@ -189,32 +415,42 @@ export default function LeaseViewPage({
         )}
       </InfoSection>
 
-        {/* ---------------- COMMENTS ---------------- */}
-        <InfoSection icon={<Info />} title="Comments">
+      <InfoSection icon={<Info />} title="Comments">
+        {isEditing ? (
+          <textarea
+            value={draftLease.comments || ""}
+            onChange={(e) =>
+              setDraftLease({ ...draftLease, comments: e.target.value })
+            }
+            className="w-full border rounded-md px-3 py-2 text-sm min-h-[100px]"
+          />
+        ) : (
           <p className="border rounded-md bg-gray-50 px-4 py-3 text-sm text-gray-700">
             {lease.comments || "No comments available."}
           </p>
-        </InfoSection>
+        )}
+      </InfoSection>
 
-        {/* ---------------- FILE ---------------- */}
-        <InfoSection icon={<ClipboardList />} title="Attached Files">
-          {lease.file_url ? (
-            <Button
+      {/* FILE */}
+      <InfoSection icon={<ClipboardList />} title="Attached Files">
+        {lease.file_url ? (
+          <Button
             onClick={() =>
-              window.open(`/api/gcp/download?path=${encodeURIComponent(lease.file_url)}`, "_blank")
+              window.open(
+                `/api/gcp/download?path=${encodeURIComponent(lease.file_url)}`,
+                "_blank",
+              )
             }
             className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
             Download File
           </Button>
-          ) : (
-            <p className="text-gray-500">No files uploaded.</p>
-          )}
-        </InfoSection>
-      </div>
+        ) : (
+          <p className="text-gray-500">No files uploaded.</p>
+        )}
+      </InfoSection>
 
-      {/* ========== BACK BUTTON ========== */}
       <Button
         variant="outline"
         className="flex items-center gap-2"
@@ -227,9 +463,7 @@ export default function LeaseViewPage({
   );
 }
 
-/* -------------------------------------------
-   SHARED UI COMPONENTS (CLEAN + MODERN)
---------------------------------------------*/
+/* ---------- SHARED COMPONENTS ---------- */
 
 function InfoSection({
   title,
@@ -246,29 +480,45 @@ function InfoSection({
         <span className="text-blue-600">{icon}</span>
         {title}
       </h3>
-
-      <div className="p-5 border rounded-xl bg-white shadow-sm">
-        {children}
-      </div>
+      <div className="p-5 border rounded-xl bg-white shadow-sm">{children}</div>
     </div>
   );
 }
 
 function Grid2({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {children}
-    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">{children}</div>
   );
 }
 
-function InfoItem({ label, value }: { label: string; value: any }) {
+function InfoItem({
+  label,
+  value,
+  editable,
+  onChange,
+  type = "text",
+}: {
+  label: string;
+  value: any;
+  editable?: boolean;
+  onChange?: (v: string) => void;
+  type?: string;
+}) {
   return (
     <div className="space-y-1">
       <Label className="text-gray-700 font-medium">{label}</Label>
-      <p className="border rounded-md bg-gray-50 px-3 py-2 text-gray-800 text-sm">
-        {value || "—"}
-      </p>
+      {editable ? (
+        <input
+          type={type}
+          value={value ?? ""}
+          onChange={(e) => onChange?.(e.target.value)}
+          className="w-full border rounded-md px-3 py-2 text-sm"
+        />
+      ) : (
+        <p className="border rounded-md bg-gray-50 px-3 py-2 text-sm">
+          {value || "—"}
+        </p>
+      )}
     </div>
   );
 }
@@ -276,11 +526,27 @@ function InfoItem({ label, value }: { label: string; value: any }) {
 function formatUSD(value: any) {
   const num = Number(value);
   if (isNaN(num)) return "—";
-
   return num.toLocaleString("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
   });
+}
+
+function buildDirtyPayload(original: any, draft: any) {
+  const payload: Record<string, any> = {};
+
+  Object.keys(draft).forEach((key) => {
+    if (draft[key] !== original[key]) {
+      payload[key] = draft[key];
+    }
+  });
+
+  return payload;
+}
+
+function normalizeNullableText(value: any) {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
 }

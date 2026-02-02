@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -90,15 +89,16 @@ export default function DocumentUploadSection() {
     "image/webp",
   ];
 
-  const FILENAME_REGEX = /^[a-zA-Z0-9]+_[a-zA-Z0-9]+\.[a-zA-Z0-9]+$/;
-
-  const isValidFileName = (name: string) => FILENAME_REGEX.test(name);
-
-  const showInvalidFilenameToast = (name: string) => {
-    toast.error("Invalid filename", {
-      description: `"${name}" must follow: first_second.filetype`,
-    });
+  const mimeTypeLabels: Record<string, string> = {
+    "application/pdf": "PDF",
+    "image/jpeg": "JPEG",
+    "image/png": "PNG",
+    "image/gif": "GIF",
+    "image/webp": "WEBP",
   };
+
+  const getAllowedFileTypesLabel = () =>
+    allowedMimeTypes.map((type) => mimeTypeLabels[type] || type).join(", ");
 
   // ===============================
   // 📌 UPLOAD LOGIC (UNCHANGED)
@@ -125,17 +125,12 @@ export default function DocumentUploadSection() {
 
   function addFiles(selected: File[]) {
     const validFiles: File[] = [];
-    let hasInvalidName = false;
 
     selected.forEach((file) => {
-      if (!isValidFileName(file.name)) {
-        hasInvalidName = true;
-        showInvalidFilenameToast(file.name);
-        return;
-      }
-
       if (!allowedMimeTypes.includes(file.type)) {
-        toast.warning(`File type not allowed: ${file.name}`);
+        toast.warning("File type not allowed", {
+          description: `${file.name} is not supported. Allowed types: ${getAllowedFileTypesLabel()}`,
+        });
         return;
       }
 
@@ -154,7 +149,6 @@ export default function DocumentUploadSection() {
 
     setFiles(total);
   }
-
   /*function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files) addFiles(Array.from(e.target.files));
   }*/

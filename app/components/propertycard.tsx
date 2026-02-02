@@ -396,18 +396,6 @@ export default function PropertyCardTable() {
                           </span>
                         </div>
                       </div>
-
-                      <div className="w-24 h-20 relative rounded-md overflow-hidden">
-                        <Image
-                          src={
-                            p.file_url ??
-                            "https://placehold.co/300x200/png?text=No+Image"
-                          }
-                          alt={p.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
                     </div>
 
                     <div className="flex flex-row gap-2">
