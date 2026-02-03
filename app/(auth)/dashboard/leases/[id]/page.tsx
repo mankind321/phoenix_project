@@ -469,10 +469,10 @@ export default function LeaseViewPage({
       {/* AUDIT INFO */}
       <InfoSection icon={<User />} title="Audit Information">
         <Grid2>
-          <InfoItem label="Created By" value={lease.created_by_name || "—"} />
+          <InfoItem label="Uploaded By" value={lease.created_by_name || "—"} />
 
           <InfoItem
-            label="Created At"
+            label="Uploaded At"
             value={
               lease.created_at
                 ? new Date(lease.created_at).toLocaleString()
@@ -488,7 +488,7 @@ export default function LeaseViewPage({
           <InfoItem
             label="Last Updated At"
             value={
-              lease.updated_at
+              lease.updated_by_name && lease.updated_at
                 ? new Date(lease.updated_at).toLocaleString()
                 : "—"
             }

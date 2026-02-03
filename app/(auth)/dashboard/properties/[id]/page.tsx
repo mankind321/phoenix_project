@@ -286,12 +286,12 @@ export default function PropertyViewPage({
       <InfoSection icon={<Info />} title="Audit Information">
         <Grid2>
           <InfoItem
-            label="Created By"
+            label="Uploaded By"
             value={property.created_by_name || "—"}
           />
 
           <InfoItem
-            label="Created At"
+            label="Uploaded At"
             value={
               property.created_at
                 ? new Date(property.created_at).toLocaleString()
