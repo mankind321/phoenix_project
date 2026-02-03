@@ -113,9 +113,9 @@ export default function PropertyViewPage({
                 onClick={() =>
                   window.open(
                     `/api/gcp/download?path=${encodeURIComponent(
-                      documentFiles.file_url
+                      documentFiles.file_url,
                     )}`,
-                    "_blank"
+                    "_blank",
                   )
                 }
                 className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 text-lg"
@@ -280,6 +280,25 @@ export default function PropertyViewPage({
         <p className="border rounded-md bg-gray-50 px-4 py-3 text-sm text-gray-700">
           {property.comments || "No comments available."}
         </p>
+      </InfoSection>
+
+      {/* AUDIT INFORMATION */}
+      <InfoSection icon={<Info />} title="Audit Information">
+        <Grid2>
+          <InfoItem
+            label="Created By"
+            value={property.created_by_name || "—"}
+          />
+
+          <InfoItem
+            label="Created At"
+            value={
+              property.created_at
+                ? new Date(property.created_at).toLocaleString()
+                : "—"
+            }
+          />
+        </Grid2>
       </InfoSection>
 
       {/* BACK BUTTON */}

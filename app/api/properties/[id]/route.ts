@@ -97,7 +97,7 @@ export async function GET(
     // 4️⃣ Fetch PROPERTY (SAFE)
     // ----------------------------------------------
     const { data: property } = await supabase
-      .from("property")
+      .from("view_property_with_user")
       .select("*")
       .eq("property_id", propertyId)
       .maybeSingle();

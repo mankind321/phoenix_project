@@ -35,6 +35,14 @@ type Property = {
   price?: number | string;
   sale_date?: string;
   comments?: string;
+
+  // ✅ Audit / Creator info (from vw_property_review)
+  creator_username?: string;
+  creator_fullname?: string;
+  creator_role?: string;
+  manager_fullname?: string;
+  created_at?: string;
+
   [key: string]: any;
 };
 
@@ -326,18 +334,37 @@ export default function ReviewPropertyListPage() {
                       <p>
                         <strong>Type:</strong> {p.type ?? "-"}
                       </p>
+
                       <p>
                         <strong>Cap Rate:</strong>{" "}
                         {p.cap_rate ? `${p.cap_rate}%` : "-"}
                       </p>
+
                       <p>
                         <strong>Latitude:</strong> {p.latitude ?? "-"}
                       </p>
+
                       <p>
                         <strong>Longitude:</strong> {p.longitude ?? "-"}
                       </p>
+
                       <p>
                         <strong>Comments:</strong> {p.comments ?? "—"}
+                      </p>
+
+                      {/* 🔎 AUDIT INFORMATION */}
+                      <hr className="border-gray-200 my-2" />
+
+                      <p>
+                        <strong>Uploaded By:</strong>{" "}
+                        {p.creator_fullname || p.creator_username || "—"}
+                      </p>
+
+                      <p>
+                        <strong>Uploaded At:</strong>{" "}
+                        {p.created_at
+                          ? new Date(p.created_at).toLocaleString()
+                          : "—"}
                       </p>
                     </div>
                   )}

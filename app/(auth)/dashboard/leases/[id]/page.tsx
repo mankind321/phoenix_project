@@ -112,7 +112,6 @@ export default function LeaseViewPage({
     setDraftLease({ ...data?.lease });
     setIsEditing(false);
   };
-
   const handleSave = async () => {
     if (saving) return;
 
@@ -132,6 +131,25 @@ export default function LeaseViewPage({
       if (normalizedDraftComments !== normalizedOriginalComments) {
         dirtyPayload.comments = normalizedDraftComments;
       }
+
+      // ✅ normalize numeric fields
+      const numericFields = [
+        "price",
+        "annual_rent",
+        "rent_psf",
+        "pass_tmru",
+        "noi",
+      ];
+
+      numericFields.forEach((field) => {
+        if (field in dirtyPayload) {
+          const value = dirtyPayload[field];
+          dirtyPayload[field] =
+            value === "" || value === null || value === undefined
+              ? null
+              : Number(value);
+        }
+      });
 
       if (Object.keys(dirtyPayload).length === 0) {
         toast.info("No changes to save");
@@ -153,14 +171,8 @@ export default function LeaseViewPage({
         return;
       }
 
-      // optimistic success → merge only what was sent
       setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              lease: { ...prev.lease, ...dirtyPayload },
-            }
-          : prev,
+        prev ? { ...prev, lease: { ...prev.lease, ...dirtyPayload } } : prev,
       );
 
       setIsEditing(false);
@@ -342,43 +354,46 @@ export default function LeaseViewPage({
         <Grid2>
           <InfoItem
             label="Price"
+            type="number"
             value={isEditing ? draftLease.price : formatUSD(lease.price)}
             editable={isEditing}
-            onChange={(v) => setDraftLease({ ...draftLease, price: Number(v) })}
+            onChange={(v) => setDraftLease({ ...draftLease, price: v })}
           />
+
           <InfoItem
             label="Current Annual Rent"
+            type="number"
             value={
               isEditing ? draftLease.annual_rent : formatUSD(lease.annual_rent)
             }
             editable={isEditing}
-            onChange={(v) =>
-              setDraftLease({ ...draftLease, annual_rent: Number(v) })
-            }
+            onChange={(v) => setDraftLease({ ...draftLease, annual_rent: v })}
           />
+
           <InfoItem
             label="Base Rent PSF"
+            type="number"
             value={isEditing ? draftLease.rent_psf : formatUSD(lease.rent_psf)}
             editable={isEditing}
-            onChange={(v) =>
-              setDraftLease({ ...draftLease, rent_psf: Number(v) })
-            }
+            onChange={(v) => setDraftLease({ ...draftLease, rent_psf: v })}
           />
+
           <InfoItem
             label="Pass-TMRU (NNN) PSF"
+            type="number"
             value={
               isEditing ? draftLease.pass_tmru : formatUSD(lease.pass_tmru)
             }
             editable={isEditing}
-            onChange={(v) =>
-              setDraftLease({ ...draftLease, pass_tmru: Number(v) })
-            }
+            onChange={(v) => setDraftLease({ ...draftLease, pass_tmru: v })}
           />
+
           <InfoItem
             label="Net Operating Income (NOI)"
+            type="number"
             value={isEditing ? draftLease.noi : formatUSD(lease.noi)}
             editable={isEditing}
-            onChange={(v) => setDraftLease({ ...draftLease, noi: Number(v) })}
+            onChange={(v) => setDraftLease({ ...draftLease, noi: v })}
           />
         </Grid2>
       </InfoSection>
@@ -451,6 +466,36 @@ export default function LeaseViewPage({
         )}
       </InfoSection>
 
+      {/* AUDIT INFO */}
+      <InfoSection icon={<User />} title="Audit Information">
+        <Grid2>
+          <InfoItem label="Created By" value={lease.created_by_name || "—"} />
+
+          <InfoItem
+            label="Created At"
+            value={
+              lease.created_at
+                ? new Date(lease.created_at).toLocaleString()
+                : "—"
+            }
+          />
+
+          <InfoItem
+            label="Last Updated By"
+            value={lease.updated_by_name || "—"}
+          />
+
+          <InfoItem
+            label="Last Updated At"
+            value={
+              lease.updated_at
+                ? new Date(lease.updated_at).toLocaleString()
+                : "—"
+            }
+          />
+        </Grid2>
+      </InfoSection>
+
       <Button
         variant="outline"
         className="flex items-center gap-2"
@@ -507,9 +552,12 @@ function InfoItem({
   return (
     <div className="space-y-1">
       <Label className="text-gray-700 font-medium">{label}</Label>
+
       {editable ? (
         <input
           type={type}
+          step={type === "number" ? "0.01" : undefined}
+          inputMode={type === "number" ? "decimal" : undefined}
           value={value ?? ""}
           onChange={(e) => onChange?.(e.target.value)}
           className="w-full border rounded-md px-3 py-2 text-sm"

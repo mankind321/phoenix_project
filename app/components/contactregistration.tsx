@@ -125,7 +125,9 @@ export default function ContactFormPage() {
   useEffect(() => {
     (async () => {
       try {
-        const p = await fetch("/api/contacts/property_list").then((r) => r.json());
+        const p = await fetch("/api/contacts/property_list").then((r) =>
+          r.json(),
+        );
         const l = await fetch("/api/contacts/lease_list").then((r) => r.json());
 
         setProperties(p.items ?? []);
@@ -196,7 +198,6 @@ export default function ContactFormPage() {
 
         setRelationText(assign?.relationship ?? "");
         setRelationComment(assign?.comments ?? "");
-
       } finally {
         setLoading(false);
       }
@@ -209,7 +210,7 @@ export default function ContactFormPage() {
   // =============================================
   //
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -251,9 +252,12 @@ export default function ContactFormPage() {
 
       const url = isEditMode ? `/api/contacts/${contactId}` : "/api/contacts";
 
-      toast.loading(isEditMode ? "Updating contact..." : "Creating contact...", {
-        id: "save",
-      });
+      toast.loading(
+        isEditMode ? "Updating contact..." : "Creating contact...",
+        {
+          id: "save",
+        },
+      );
 
       const res = await fetch(url, {
         method: isEditMode ? "PUT" : "POST",
@@ -298,10 +302,8 @@ export default function ContactFormPage() {
         <p className="text-red-500">{error}</p>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
-
           {/* BROKER + LISTING */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
             <div>
               <Label className="flex items-center gap-2">
                 <User className="h-4 w-4 text-gray-500" />
@@ -329,12 +331,10 @@ export default function ContactFormPage() {
                 placeholder="Listing Company"
               />
             </div>
-
           </div>
 
           {/* CONTACT INFO */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
             <div>
               <Label className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-gray-500" />
@@ -376,31 +376,6 @@ export default function ContactFormPage() {
                 placeholder="https://example.com"
               />
             </div>
-
-          </div>
-
-          {/* LEASE SELECT */}
-          <div>
-            <Label className="flex items-center gap-2 mb-2">
-              <FileText className="h-4 w-4 text-gray-500" />
-              Assign to Lease
-            </Label>
-
-            <SearchableSelect
-              value={selectedLease}
-              onChange={(v) => {
-                setSelectedLease(v);
-
-                // Sync property when lease belongs to a property
-                const lease = leases.find((x) => x.id === v);
-                if (lease?.property_id) setSelectedProperty(lease.property_id);
-              }}
-              options={leases.map((l) => ({
-                value: l.id,
-                label: l.tenant ?? l.name ?? "",
-              }))}
-              placeholder="Select lease..."
-            />
           </div>
 
           {/* PROPERTY SELECT */}
@@ -410,20 +385,71 @@ export default function ContactFormPage() {
               Assign to Property
             </Label>
 
-            <SearchableSelect
-              value={selectedProperty}
-              onChange={(v) => {
-                setSelectedProperty(v);
+            <div className="flex gap-2 items-center">
+              <SearchableSelect
+                value={selectedProperty}
+                onChange={(v) => {
+                  setSelectedProperty(v);
+                  // Clear lease when property changes
+                  setSelectedLease("");
+                }}
+                options={properties.map((p) => ({
+                  value: p.id,
+                  label: p.name,
+                }))}
+                placeholder="Select property..."
+              />
 
-                // Clear lease when user manually chooses property
-                setSelectedLease("");
-              }}
-              options={properties.map((p) => ({
-                value: p.id,
-                label: p.name,
-              }))}
-              placeholder="Select property..."
-            />
+              {selectedProperty && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedProperty("");
+                    setSelectedLease("");
+                  }}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* LEASE SELECT */}
+          <div>
+            <Label className="flex items-center gap-2 mb-2">
+              <FileText className="h-4 w-4 text-gray-500" />
+              Assign to Lease
+            </Label>
+
+            <div className="flex gap-2 items-center">
+              <SearchableSelect
+                value={selectedLease}
+                onChange={(v) => {
+                  setSelectedLease(v);
+
+                  // Sync property when lease belongs to a property
+                  const lease = leases.find((x) => x.id === v);
+                  if (lease?.property_id)
+                    setSelectedProperty(lease.property_id);
+                }}
+                options={leases.map((l) => ({
+                  value: l.id,
+                  label: l.tenant ?? l.name ?? "",
+                }))}
+                placeholder="Select lease..."
+              />
+
+              {selectedLease && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setSelectedLease("")}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* RELATION */}
@@ -466,7 +492,7 @@ export default function ContactFormPage() {
             <Button
               type="submit"
               disabled={submitting}
-              className="bg-blue-700 hover:bg-blue-600 text-white"
+              className="bg-blue-500 hover:bg-blue-700 text-white hover:text-white"
             >
               <Send className="w-4 h-4 mr-2" />
               {isEditMode ? "Update Contact" : "Save Contact"}
@@ -475,13 +501,12 @@ export default function ContactFormPage() {
             <Button
               type="button"
               variant="outline"
-              className="bg-red-700 hover:bg-red-600 text-white"
+              className="bg-red-500 hover:bg-red-700 text-white hover:text-white"
               onClick={() => router.back()}
             >
               Cancel
             </Button>
           </div>
-
         </form>
       )}
     </div>
