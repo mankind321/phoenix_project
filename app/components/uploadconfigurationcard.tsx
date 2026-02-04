@@ -75,9 +75,9 @@ export default function DocumentUploadSection() {
   const [dateTo, setDateTo] = useState("");
 
   // Disable uploading if user already has 10 documents stored
-  const reachedLimit = files.length >= 10;
+  const reachedLimit = files.length >= 1000;
 
-  const maxFiles = 10;
+  const maxFiles = 1000;
 
   const allowedMimeTypes = [
     "application/pdf",
