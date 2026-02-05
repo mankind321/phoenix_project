@@ -38,7 +38,6 @@ import {
   FileWarning,
   ChevronLeft,
   ChevronRight,
-  CircleX,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -274,19 +273,9 @@ export default function ErrorMonitoringTable() {
   });
 
   return (
-    <div className="w-11/12 mx-auto mt-6 space-y-6">
+    <div className=" mx-auto space-y-6">
       {/* HEADER + SEARCH */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <CircleX className="w-6 h-6 text-gray-700" />
-            <h2 className="text-xl font-semibold text-gray-800">
-              Error Document Monitoring
-            </h2>
-          </div>
-          <p className="text-sm text-gray-500">Manage Uploaded Document that Failed the extraction</p>
-        </div>
-
         <Input
           placeholder="Search file name..."
           value={search}
@@ -300,11 +289,11 @@ export default function ErrorMonitoringTable() {
 
       <div className="border rounded-lg bg-white shadow-sm overflow-x-auto">
         <Table>
-          <TableHeader className="bg-gray-100">
+          <TableHeader className="bg-white">
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id}>
                 {hg.headers.map((h) => (
-                  <TableHead key={h.id} className="p-3">
+                  <TableHead key={h.id}>
                     {flexRender(h.column.columnDef.header, h.getContext())}
                   </TableHead>
                 ))}

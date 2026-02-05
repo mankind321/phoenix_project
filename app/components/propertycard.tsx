@@ -101,7 +101,7 @@ export default function PropertyCardTable() {
   const [data, setData] = React.useState<Property[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [page, setPage] = React.useState(1);
-  const [limit] = React.useState(9);
+  const [limit] = React.useState(50);
   const [total, setTotal] = React.useState(0);
 
   const [search, setSearch] = React.useState("");

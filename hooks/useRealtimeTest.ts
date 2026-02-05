@@ -87,7 +87,7 @@ export function useRealtimeTest(enabled: boolean) {
                 );
               } else if (row.extraction_status === "FAILED") {
                 toast.error(
-                  `The extraction process for "${row.file_name ?? "document"}" was unsuccessful. Please refer to the Error Monitoring page to investigate and resolve the issue.`,
+                  `The extraction process for "${row.file_name ?? "document"}" was unsuccessful. Please refer to the Error Document List in the Document Management Tab to investigate and resolve the issue.`,
                   { id: toastId, duration: 30_000 }
                 );
               }
