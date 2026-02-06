@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     // ----------------------------------------------
     // 3. Normalize filename
     // ----------------------------------------------
-    const normalizedFileName = fileNameRaw.trim().replace(/\s+/g, "_");
+    const normalizedFileName = fileNameRaw.trim()
 
     // ----------------------------------------------
     // 4. Generate upload path
