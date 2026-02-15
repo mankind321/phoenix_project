@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   ChevronDown,
   ChevronUp,
-  FileSearch,
+  Eye,
   FileText,
   Loader2,
   Search as SearchIcon,
@@ -164,19 +164,19 @@ export default function LeaseListPage() {
       <div>
         <div className="flex items-center gap-2 mb-4">
           <FileText className="w-5 h-5 text-gray-600" />
-          <h2 className="text-lg font-semibold text-gray-800">Leases</h2>
+          <h2 className="text-lg font-semibold text-gray-800">Tenant Information</h2>
         </div>
 
         {isLoading && (
           <div className="flex justify-center items-center py-8 text-gray-500">
             <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-            Loading leases…
+            Loading Tenant Information…
           </div>
         )}
 
         {!isLoading && leases.length === 0 && (
           <p className="text-center text-gray-500 py-8">
-            No leases found.
+            No Tenant Information found.
           </p>
         )}
 
@@ -198,13 +198,15 @@ export default function LeaseListPage() {
 
                       <div className="space-y-1">
                         <h3 className="font-semibold text-gray-800">
-                          {lease.property_name ??
-                            lease.property_address ??
-                            lease.property_id}
+                            {lease.tenant ?? "—"}
                         </h3>
 
                         <p className="text-xs text-gray-500">
-                          Tenant: <strong>{lease.tenant ?? "—"}</strong> ·
+                          {lease.property_name ??
+                            lease.property_address}
+                        </p>
+
+                        <p className="text-xs text-gray-500">
                           Landlord:{" "}
                           <strong>{lease.landlord ?? "—"}</strong>
                         </p>
@@ -216,7 +218,7 @@ export default function LeaseListPage() {
                     </div>
 
                     <div className="text-right space-y-2">
-                      <span className="text-xs px-2 py-1 rounded-full bg-gray-100">
+                      <span className="text-xs px-2 py-1 rounded-full bg-green-200">
                         {lease.status}
                       </span>
 
@@ -253,13 +255,13 @@ export default function LeaseListPage() {
 
                     <Button
                       variant="outline"
-                      className="bg-blue-600 text-white hover:bg-blue-700"
+                      className="bg-blue-600 text-white hover:bg-blue-700 hover:text-white"
                       onClick={() =>
                         router.push(`/dashboard/leases/${lease.lease_id}`)
                       }
                     >
-                      <FileSearch />
-                      Go to Lease Record
+                      <Eye />
+                      View Tenant Details
                     </Button>
                   </div>
 

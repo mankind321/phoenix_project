@@ -5,7 +5,9 @@ import { authOptions } from "@/lib/auth";
 import { Storage } from "@google-cloud/storage";
 import { logAuditTrail } from "@/lib/auditLogger";
 
-const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON!);
+const credentials = JSON.parse(
+  process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON!
+);
 
 const storage = new Storage({
   projectId: credentials.project_id,
@@ -17,55 +19,101 @@ const storage = new Storage({
 
 const bucket = storage.bucket(process.env.GOOGLE_BUCKET_DOCUMENT!);
 
-export async function GET(req: Request) {
-  try {
-    // 1️⃣ Validate session
-    const session = await getServerSession(authOptions);
-    const user = session?.user;
+/* ============================================================
+   SHARED VALIDATION FUNCTION
+============================================================ */
+async function validateAndGetFile(req: Request) {
+  // Validate session
+  const session = await getServerSession(authOptions);
+  const user = session?.user;
 
-    if (!user) {
-      return NextResponse.json(
+  if (!user) {
+    return {
+      error: NextResponse.json(
         { success: false, message: "Unauthorized" },
         { status: 401 }
-      );
-    }
+      ),
+    };
+  }
 
-    // 2️⃣ Extract file path from query string
-    const { searchParams } = new URL(req.url);
-    const filePath = searchParams.get("path");
+  // Get file path
+  const { searchParams } = new URL(req.url);
+  const filePath = searchParams.get("path");
 
-    if (!filePath) {
-      return NextResponse.json(
+  if (!filePath) {
+    return {
+      error: NextResponse.json(
         { success: false, message: "Missing file path" },
         { status: 400 }
-      );
-    }
+      ),
+    };
+  }
 
-    // Normalize path (in case gs://bucket/... is passed)
-    const cleanPath = filePath
-      .replace("gs://", "")
-      .replace(process.env.GOOGLE_BUCKET_DOCUMENT + "/", "")
-      .replace(/^\/+/, ""); // remove leading slash
+  // Normalize path
+  const cleanPath = filePath
+    .replace("gs://", "")
+    .replace(process.env.GOOGLE_BUCKET_DOCUMENT + "/", "")
+    .replace(/^\/+/, "");
 
-    // 3️⃣ Get file reference from GCP bucket
-    const file = bucket.file(cleanPath);
+  const file = bucket.file(cleanPath);
 
-    // 4️⃣ Check if file exists
-    const [exists] = await file.exists();
-    if (!exists) {
-      return NextResponse.json(
+  const [exists] = await file.exists();
+
+  if (!exists) {
+    return {
+      error: NextResponse.json(
         { success: false, message: "File not found in GCP" },
         { status: 404 }
-      );
-    }
+      ),
+    };
+  }
 
-    // 5️⃣ Download file buffer
+  return {
+    file,
+    cleanPath,
+    user,
+  };
+}
+
+/* ============================================================
+   HEAD METHOD (for availability check)
+============================================================ */
+export async function HEAD(req: Request) {
+  try {
+    const result = await validateAndGetFile(req);
+
+    if (result.error) return result.error;
+
+    return new NextResponse(null, {
+      status: 200,
+    });
+
+  } catch (error: any) {
+    console.error("❌ File HEAD check failed:", error);
+
+    return new NextResponse(null, {
+      status: 500,
+    });
+  }
+}
+
+/* ============================================================
+   GET METHOD (actual download)
+============================================================ */
+export async function GET(req: Request) {
+  try {
+    const result = await validateAndGetFile(req);
+
+    if (result.error) return result.error;
+
+    const { file, cleanPath, user } = result;
+
+    // Download file
     const [contents] = await file.download();
 
-    // 6️⃣ Determine file name from path
     const fileName = cleanPath.split("/").pop() ?? "download";
 
-    // 7️⃣ AUDIT LOG — record the download
+    // Audit log
     await logAuditTrail({
       userId: user.id,
       username: user.username,
@@ -77,7 +125,6 @@ export async function GET(req: Request) {
       userAgent: req.headers.get("user-agent") ?? "Unknown",
     });
 
-    // 8️⃣ Return file as download response
     return new Response(new Uint8Array(contents), {
       status: 200,
       headers: {

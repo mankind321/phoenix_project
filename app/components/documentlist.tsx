@@ -50,6 +50,8 @@ export default function DocumentListTab() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
   // ------------------------------
   // DATA FETCH (MOVED HERE)
   // ------------------------------
@@ -115,12 +117,46 @@ export default function DocumentListTab() {
     [loadDocuments],
   );
 
-  const handleDownload = useCallback((url: string) => {
-    const clean = normalizeGsUrl(url);
-    window.location.href = `/api/gcp/download?path=${encodeURIComponent(
-      clean,
-    )}`;
-  }, []);
+  const handleDownload = useCallback(
+    async (documentId: string, url: string) => {
+      try {
+        setDownloadingId(documentId);
+
+        const clean = normalizeGsUrl(url);
+
+        const downloadUrl = `/api/gcp/download?path=${encodeURIComponent(
+          clean,
+        )}`;
+
+        // Step 1: Check if exists using HEAD
+        const check = await fetch(downloadUrl, {
+          method: "HEAD",
+        });
+
+        if (!check.ok) {
+          if (check.status === 404) {
+            toast.error("Document file not found.");
+          } else if (check.status === 401) {
+            toast.error("You are not authorized.");
+          } else {
+            toast.error("Document is not available.");
+          }
+          return;
+        }
+
+        // Step 2: Download if exists
+        window.location.href = downloadUrl;
+
+        toast.success("Download started");
+      } catch (error) {
+        console.error(error);
+        toast.error("Failed to download document");
+      } finally {
+        setDownloadingId(null);
+      }
+    },
+    [],
+  );
 
   // ------------------------------
   // TABLE COLUMNS (MOVED HERE)
@@ -172,11 +208,16 @@ export default function DocumentListTab() {
             {/* Download */}
             <Button
               size="sm"
-              onClick={() => handleDownload(row.original.file_url)}
-              className="flex items-center gap-1 bg-blue-700 hover:bg-blue-400 text-white"
+              disabled={downloadingId === row.original.document_id}
+              onClick={() =>
+                handleDownload(row.original.document_id, row.original.file_url)
+              }
+              className="flex items-center gap-1 bg-blue-700 hover:bg-blue-400 text-white disabled:bg-gray-400"
             >
               <Download className="w-4 h-4" />
-              Download
+              {downloadingId === row.original.document_id
+                ? "Checking..."
+                : "Download"}
             </Button>
 
             {/* Delete */}
@@ -194,7 +235,7 @@ export default function DocumentListTab() {
         ),
       },
     ],
-    [handleDelete, handleDownload],
+    [downloadingId, handleDelete, handleDownload],
   );
 
   const table = useReactTable({

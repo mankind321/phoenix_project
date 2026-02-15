@@ -55,6 +55,8 @@ export default function LeaseViewPage({
 
   const [saving, setSaving] = useState(false);
 
+  const [downloadingFile, setDownloadingFile] = useState(false);
+
   // ---------------- LOAD LEASE ----------------
   useEffect(() => {
     if (!leaseId) return;
@@ -112,6 +114,48 @@ export default function LeaseViewPage({
     setDraftLease({ ...data?.lease });
     setIsEditing(false);
   };
+
+  const handleDownloadLeaseFile = async () => {
+    if (!lease?.file_url) {
+      toast.error("No file available.");
+      return;
+    }
+
+    try {
+      setDownloadingFile(true);
+
+      const downloadUrl = `/api/gcp/download?path=${encodeURIComponent(
+        lease.file_url,
+      )}`;
+
+      // Check file existence first
+      const res = await fetch(downloadUrl, {
+        method: "HEAD",
+      });
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          toast.error("File not found.");
+        } else if (res.status === 401) {
+          toast.error("Unauthorized access.");
+        } else {
+          toast.error("File is not available.");
+        }
+        return;
+      }
+
+      // File exists → download
+      window.open(downloadUrl, "_blank");
+
+      toast.success("Download started.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to download file.");
+    } finally {
+      setDownloadingFile(false);
+    }
+  };
+
   const handleSave = async () => {
     if (saving) return;
 
@@ -201,18 +245,18 @@ export default function LeaseViewPage({
 
   // ---------------- GUARDS ----------------
   if (loading)
-    return <p className="text-center mt-10 text-gray-600">Loading lease...</p>;
+    return <p className="text-center mt-10 text-gray-600">Loading Tenant Information..</p>;
 
   if (!data)
     return (
       <p className="text-center mt-10 text-red-500">
-        Lease not found or has been removed.
+        Tenant Information not found or has been removed.
       </p>
     );
 
   if (!draftLease)
     return (
-      <p className="text-center mt-10 text-gray-600">Preparing lease data…</p>
+      <p className="text-center mt-10 text-gray-600">Preparing Lease Information data…</p>
     );
 
   const { lease, contacts } = data;
@@ -450,20 +494,22 @@ export default function LeaseViewPage({
       <InfoSection icon={<ClipboardList />} title="Attached Files">
         {lease.file_url ? (
           <Button
-            onClick={() =>
-              window.open(
-                `/api/gcp/download?path=${encodeURIComponent(lease.file_url)}`,
-                "_blank",
-              )
-            }
-            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+            onClick={handleDownloadLeaseFile}
+            disabled={downloadingFile}
+            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 disabled:bg-gray-400"
           >
             <Download className="w-4 h-4" />
-            Download File
+            {downloadingFile ? "Checking..." : "Download File"}
           </Button>
         ) : (
           <p className="text-gray-500">No files uploaded.</p>
         )}
+        <InfoItem
+          label="status"
+          value={draftLease.status}
+          editable={false}
+          hidden={true}
+        />
       </InfoSection>
 
       {/* AUDIT INFO */}
@@ -542,15 +588,17 @@ function InfoItem({
   editable,
   onChange,
   type = "text",
+  hidden = false,
 }: {
   label: string;
   value: any;
   editable?: boolean;
   onChange?: (v: string) => void;
   type?: string;
+  hidden?: boolean;
 }) {
   return (
-    <div className="space-y-1">
+    <div className={`space-y-1 ${hidden ? "hidden" : ""}`}>
       <Label className="text-gray-700 font-medium">{label}</Label>
 
       {editable ? (

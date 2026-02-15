@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import { toast } from "sonner";
+
 import {
   Table,
   TableBody,
@@ -56,6 +58,8 @@ export default function PropertyViewPage({
   const [data, setData] = useState<PropertyData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [downloadingBrochure, setDownloadingBrochure] = useState(false);
+
   useEffect(() => {
     if (!propertyId) return;
 
@@ -75,6 +79,47 @@ export default function PropertyViewPage({
 
     fetchProperty();
   }, [propertyId]);
+
+  const handleDownloadBrochure = async () => {
+    if (!documentFiles?.file_url) {
+      toast.error("No brochure available.");
+      return;
+    }
+
+    try {
+      setDownloadingBrochure(true);
+
+      const downloadUrl = `/api/gcp/download?path=${encodeURIComponent(
+        documentFiles.file_url,
+      )}`;
+
+      // Check if file exists first
+      const res = await fetch(downloadUrl, {
+        method: "HEAD",
+      });
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          toast.error("Document file not found.");
+        } else if (res.status === 401) {
+          toast.error("Unauthorized access.");
+        } else {
+          toast.error("Document is not available for download.");
+        }
+        return;
+      }
+
+      // File exists → download
+      window.open(downloadUrl, "_blank");
+
+      toast.success("Download started.");
+    } catch (error) {
+      console.error("Download check failed:", error);
+      toast.error("Unable to verify document availability.");
+    } finally {
+      setDownloadingBrochure(false);
+    }
+  };
 
   if (loading)
     return (
@@ -110,18 +155,14 @@ export default function PropertyViewPage({
           <div>
             {documentFiles.file_url ? (
               <Button
-                onClick={() =>
-                  window.open(
-                    `/api/gcp/download?path=${encodeURIComponent(
-                      documentFiles.file_url,
-                    )}`,
-                    "_blank",
-                  )
-                }
-                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 text-lg"
+                onClick={handleDownloadBrochure}
+                disabled={!documentFiles?.file_url || downloadingBrochure}
+                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 text-lg disabled:bg-gray-400"
               >
-                <Download className="w-15 h-15" />
-                Download Property Brochure
+                <Download className="w-5 h-5" />
+                {downloadingBrochure
+                  ? "Checking..."
+                  : "Download Property Brochure"}
               </Button>
             ) : (
               <p className="text-gray-500">No files uploaded.</p>

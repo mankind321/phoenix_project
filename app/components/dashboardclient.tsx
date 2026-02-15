@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
@@ -254,6 +255,7 @@ export default function DashboardClient() {
         </div>
 
         {/* EXPORT MENU */}
+        {/*
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700">
@@ -292,6 +294,7 @@ export default function DashboardClient() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+      */}
       </div>
 
 {/* 
@@ -369,7 +372,7 @@ export default function DashboardClient() {
 
       {/* ERROR */}
       {error && <div className="text-sm text-red-600">{error}</div>}
-      {loading && <div>Loading dashboard…</div>}
+      {loading && <div>Loading statistic…</div>}
 
       {/* CONTENT */}
       {!loading && kpi && (

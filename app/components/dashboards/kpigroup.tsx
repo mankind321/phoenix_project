@@ -3,7 +3,6 @@
 
 import {
   Building2,
-  FileWarning,
 } from "lucide-react";
 
 export default function KPIGroup({ kpi }: { kpi: any }) {
@@ -13,13 +12,7 @@ export default function KPIGroup({ kpi }: { kpi: any }) {
       value: kpi?.available_properties ?? 0,
       sub: "Active portfolio",
       icon: <Building2 className="w-5 h-5 text-blue-500" />,
-    },
-    {
-      label: "Error Documents",
-      value: kpi?.error_documents ?? 0,
-      sub: "Extraction failed",
-      icon: <FileWarning className="w-5 h-5 text-red-500" />,
-    },
+    }
   ];
 
   return (
