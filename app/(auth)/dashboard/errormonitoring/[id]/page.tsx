@@ -92,10 +92,22 @@ export default function ErrorMonitoringViewPage({
 
       <InfoSection title="Property Information" icon={<Building2 />}>
         <Grid3>
-          <InfoItem label="Property Key" value={document.property_key?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="Property Name" value={document.property_name?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="Property Type" value={document.property_type?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="Property Status" value={document.property_status?.replace(/[\[\]']/g, "")} />
+          <InfoItem
+            label="Property Key"
+            value={document.property_key?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="Property Name"
+            value={document.property_name?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="Property Type"
+            value={document.property_type?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="Property Status"
+            value={document.property_status?.replace(/[\[\]']/g, "")}
+          />
         </Grid3>
       </InfoSection>
 
@@ -103,18 +115,43 @@ export default function ErrorMonitoringViewPage({
 
       <InfoSection title="Location Information" icon={<MapPinned />}>
         <Grid3>
-          <InfoItem label="Address" value={document.address?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="Street" value={document.street?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="City" value={document.city?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="State" value={document.state?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="Zip Code" value={document.zip_code?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="Country" value={document.country?.replace(/[\[\]']/g, "")} />
+          <InfoItem
+            label="Address"
+            value={document.address?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="Street"
+            value={document.street?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="City"
+            value={document.city?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="State"
+            value={document.state?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="Zip Code"
+            value={document.zip_code?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="Country"
+            value={document.country?.replace(/[\[\]']/g, "")}
+          />
           <InfoItem
             label="Geocoded Address"
             value={document.geocoded_address?.replace(/[\[\]']/g, "")}
           />
-          <InfoItem label="Latitude" value={document.latitude?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="Longitude" value={document.longitude?.replace(/[\[\]']/g, "")} />
+          <InfoItem
+            label="Latitude"
+            value={String(document.latitude ?? "").replace(/[\[\]']/g, "")}
+          />
+
+          <InfoItem
+            label="Longitude"
+            value={String(document.longitude ?? "").replace(/[\[\]']/g, "")}
+          />
         </Grid3>
       </InfoSection>
 
@@ -122,11 +159,26 @@ export default function ErrorMonitoringViewPage({
 
       <InfoSection title="Financial Information" icon={<DollarSign />}>
         <Grid3>
-          <InfoItem label="Price" value={document.price?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="Asking Price" value={document.asking_price?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="Annual Rent" value={document.annual_rent?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="Rent PSF" value={document.rent_psf?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="Cap Rate" value={document.cap_rate?.replace(/[\[\]']/g, "")} />
+          <InfoItem
+            label="Price"
+            value={document.price?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="Asking Price"
+            value={document.asking_price?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="Annual Rent"
+            value={document.annual_rent?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="Rent PSF"
+            value={document.rent_psf?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="Cap Rate"
+            value={document.cap_rate?.replace(/[\[\]']/g, "")}
+          />
         </Grid3>
       </InfoSection>
 
@@ -134,9 +186,18 @@ export default function ErrorMonitoringViewPage({
 
       <InfoSection title="Lease Information" icon={<Calendar />}>
         <Grid3>
-          <InfoItem label="Lease Start" value={document.lease_start?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="Lease End" value={document.lease_end?.replace(/[\[\]']/g, "")} />
-          <InfoItem label="Sale Date" value={document.sale_date?.replace(/[\[\]']/g, "")} />
+          <InfoItem
+            label="Lease Start"
+            value={document.lease_start?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="Lease End"
+            value={document.lease_end?.replace(/[\[\]']/g, "")}
+          />
+          <InfoItem
+            label="Sale Date"
+            value={document.sale_date?.replace(/[\[\]']/g, "")}
+          />
           <InfoItem
             label="Availability Date"
             value={document.availability_date?.replace(/[\[\]']/g, "")}
@@ -170,7 +231,10 @@ export default function ErrorMonitoringViewPage({
         </Grid3>
       </InfoSection>
 
-      <Button variant="outline" onClick={() => router.push("/dashboard/documents")}>
+      <Button
+        variant="outline"
+        onClick={() => router.push("/dashboard/documents")}
+      >
         <ArrowLeft className="w-4 h-4 mr-2" />
         Back
       </Button>
