@@ -40,6 +40,9 @@ import {
 } from "@react-google-maps/api";
 import { Can } from "./can";
 
+import { useSession } from "next-auth/react";
+import { X, Clock } from "lucide-react";
+
 interface Property {
   property_id: string;
   name: string;
@@ -137,6 +140,16 @@ export default function PropertyCardTable() {
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? "",
   });
 
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
+
+  const storageKey = `recent_property_search_${userId}`;
+
+  const [recentSearches, setRecentSearches] = React.useState<string[]>([]);
+  const [showRecentDropdown, setShowRecentDropdown] = React.useState(false);
+
+  const searchWrapperRef = React.useRef<HTMLDivElement>(null);
+
   const mapCenter = React.useMemo(() => {
     const withCoords = data.filter((p) => p.latitude && p.longitude);
     if (!withCoords.length) return { lat: 39.5, lng: -98.35 };
@@ -190,6 +203,42 @@ export default function PropertyCardTable() {
     fetchData();
   }, [page, limit, search, sortField, sortOrder]);
 
+  React.useEffect(() => {
+    if (!userId) return;
+
+    const saved = localStorage.getItem(storageKey);
+    if (saved) setRecentSearches(JSON.parse(saved));
+  }, [storageKey, userId]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(event.target as Node)
+      ) {
+        setShowRecentDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const saveRecentSearch = (value: string) => {
+    if (!value || !userId) return;
+
+    const updated = [value, ...recentSearches.filter((v) => v !== value)].slice(
+      0,
+      5,
+    );
+
+    setRecentSearches(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+  };
+
   const handleOpenStatusDialog = async (p: Property) => {
     try {
       const res = await fetch(`/api/lease/active?property_id=${p.property_id}`);
@@ -213,8 +262,27 @@ export default function PropertyCardTable() {
 
   // Trigger search manually
   const triggerSearch = () => {
-    setSearch(searchInput.trim());
+    const trimmed = searchInput.trim();
+
+    // Save only if not empty
+    if (trimmed) {
+      saveRecentSearch(trimmed);
+    }
+
+    // Always apply search (empty = load all records)
+    setSearch(trimmed);
+
+    // Reset pagination
     setPage(1);
+
+    // Close dropdown
+    setShowRecentDropdown(false);
+  };
+
+  const removeRecentSearch = (value: string) => {
+    const updated = recentSearches.filter((v) => v !== value);
+    setRecentSearches(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
   };
 
   // Sidebar click
@@ -308,16 +376,71 @@ export default function PropertyCardTable() {
         </div>
 
         {/* SEARCH BAR */}
-        <div className="flex gap-3 items-center">
-          <Input
-            placeholder="Find properties by name, city, or even natural language…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") triggerSearch();
-            }}
-            className="w-[700px] text-base"
-          />
+        <div
+          ref={searchWrapperRef}
+          className="flex gap-3 items-center relative"
+        >
+          <div className="relative">
+            <Input
+              placeholder="Find properties by name, city, or even natural language…"
+              value={searchInput}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSearchInput(value);
+                setShowRecentDropdown(true);
+
+                // Auto-load all when cleared
+                if (!value.trim()) {
+                  setSearch("");
+                  setPage(1);
+                }
+              }}
+              onFocus={() => setShowRecentDropdown(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") triggerSearch();
+              }}
+              className="w-[700px] text-base"
+            />
+
+            {/* Recent search dropdown */}
+            {showRecentDropdown && recentSearches.length > 0 && (
+              <div className="absolute top-full left-0 w-full bg-white border rounded-md shadow-md z-50 mt-1 max-h-60 overflow-auto">
+                {recentSearches
+                  .filter((item) =>
+                    item.toLowerCase().includes(searchInput.toLowerCase()),
+                  )
+                  .map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer group"
+                    >
+                      <div
+                        className="flex items-center gap-2 flex-1"
+                        onClick={() => {
+                          setSearchInput(item);
+                          saveRecentSearch(item);
+                          setSearch(item);
+                          setPage(1);
+                          setShowRecentDropdown(false);
+                        }}
+                      >
+                        <Clock size={14} className="text-gray-400" />
+                        <span>{item}</span>
+                      </div>
+
+                      <X
+                        size={14}
+                        className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeRecentSearch(item);
+                        }}
+                      />
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
 
           <Button
             onClick={triggerSearch}

@@ -6,12 +6,11 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
-import {
-  Building2,
-  Loader2,
-  Search as SearchIcon,
-  Eye,
-} from "lucide-react";
+import { Building2, Loader2, Search as SearchIcon, Eye } from "lucide-react";
+
+import { useSession } from "next-auth/react";
+import { Clock, X } from "lucide-react";
+import React, { useRef } from "react";
 
 type Property = {
   property_id?: string;
@@ -47,6 +46,71 @@ export default function ReviewPropertyListPage() {
   const [pageSize] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
+
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
+
+  const storageKey = `recent_review_property_search_${userId}`;
+
+  const [searchInput, setSearchInput] = useState("");
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [showRecentDropdown, setShowRecentDropdown] = useState(false);
+
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      setRecentSearches(JSON.parse(saved));
+    }
+  }, [storageKey, userId]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(event.target as Node)
+      ) {
+        setShowRecentDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const saveRecentSearch = (value: string) => {
+    if (!value || !userId) return;
+
+    const updated = [value, ...recentSearches.filter((v) => v !== value)].slice(
+      0,
+      5,
+    );
+
+    setRecentSearches(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+  };
+
+  const applySearch = () => {
+    const trimmed = searchInput.trim();
+
+    if (trimmed) {
+      saveRecentSearch(trimmed);
+    }
+
+    setSearch(trimmed);
+    setPage(1);
+    setShowRecentDropdown(false);
+  };
+
+  const removeRecentSearch = (value: string) => {
+    const updated = recentSearches.filter((v) => v !== value);
+    setRecentSearches(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+  };
 
   // -------------------------------------------------------
   // Fetch Data
@@ -103,15 +167,82 @@ export default function ReviewPropertyListPage() {
         <div className="max-w-xl mt-4">
           <p className="text-sm font-medium text-gray-600 mb-1">Search</p>
 
-          <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
+          <div
+            ref={searchWrapperRef}
+            className="relative flex items-center gap-2"
+          >
+            <div className="relative">
+              <Input
+                placeholder="Search property, landlord, address..."
+                className="w-[600px]"
+                value={searchInput}
+                onChange={(e) => {
+                  const value = e.target.value;
 
-            <Input
-              placeholder="Search tenant, property, landlord..."
-              className="h-11 pl-11 rounded-xl border-gray-300"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+                  setSearchInput(value);
+                  setShowRecentDropdown(true);
+
+                  // reload all when cleared
+                  if (!value.trim()) {
+                    setSearch("");
+                    setPage(1);
+                  }
+                }}
+                onFocus={() => setShowRecentDropdown(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") applySearch();
+                }}
+              />
+
+              {/* Recent search dropdown */}
+
+              {showRecentDropdown && recentSearches.length > 0 && (
+                <div className="absolute top-full left-0 w-full bg-white border rounded-md shadow-md z-50 mt-1 max-h-60 overflow-auto">
+                  {recentSearches
+                    .filter((item) =>
+                      item.toLowerCase().includes(searchInput.toLowerCase()),
+                    )
+                    .map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer group"
+                      >
+                        <div
+                          className="flex items-center gap-2 flex-1"
+                          onClick={() => {
+                            setSearchInput(item);
+                            saveRecentSearch(item);
+
+                            setSearch(item);
+                            setPage(1);
+
+                            setShowRecentDropdown(false);
+                          }}
+                        >
+                          <Clock className="w-4 h-4 text-gray-400" />
+                          {item}
+                        </div>
+
+                        <X
+                          className="w-4 h-4 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeRecentSearch(item);
+                          }}
+                        />
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+
+            <Button
+              onClick={applySearch}
+              className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 mt-2"
+            >
+              <SearchIcon className="w-4 h-4" />
+              Search
+            </Button>
           </div>
         </div>
       </div>
@@ -131,9 +262,7 @@ export default function ReviewPropertyListPage() {
         )}
 
         {!isLoading && properties.length === 0 && (
-          <p className="text-center text-gray-500 py-8">
-            No properties found.
-          </p>
+          <p className="text-center text-gray-500 py-8">No properties found.</p>
         )}
 
         {!isLoading && properties.length > 0 && (
@@ -194,9 +323,7 @@ export default function ReviewPropertyListPage() {
                         <Button
                           className="bg-blue-600 hover:bg-blue-700 text-white px-4 flex items-center gap-2"
                           onClick={() =>
-                            router.push(
-                              `/dashboard/review/${p.property_id}`,
-                            )
+                            router.push(`/dashboard/review/${p.property_id}`)
                           }
                         >
                           <Eye className="w-4 h-4" />

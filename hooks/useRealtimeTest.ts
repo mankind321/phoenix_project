@@ -41,18 +41,14 @@ export function useRealtimeTest(enabled: boolean) {
       console.group("[realtime] init");
 
       try {
-        console.log("[realtime] requesting token...");
         const res = await fetch("/api/realtime-token", { method: "POST" });
         const json = await res.json();
-        console.log("[realtime] token response:", json);
 
         if (!json.success) throw new Error("Realtime token failed");
 
-        console.log("[realtime] creating realtime client");
         const supabase = createRealtimeClient(json.access_token);
         supabaseRef.current = supabase;
 
-        console.log("[realtime] creating channel");
         const channel = supabase
           .channel(`document-extraction-alerts:${userId}`)
           .on(
@@ -64,11 +60,6 @@ export function useRealtimeTest(enabled: boolean) {
               filter: `user_id=eq.${userId}`,
             },
             (payload: RealtimePostgresInsertPayload<DocumentRegistryRow>) => {
-              console.group("[realtime] postgres_changes");
-              console.log("payload:", payload);
-              console.log("new row:", payload.new);
-              console.groupEnd();
-
               const row = payload.new;
               if (row.user_id !== userId) {
                 console.warn("[realtime] user_id mismatch", {

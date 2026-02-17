@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import {
-  Search,
   Download,
   ChevronLeft,
   ChevronRight,
@@ -32,6 +31,10 @@ import {
 } from "@tanstack/react-table";
 import { Can } from "./can";
 
+import { useSession } from "next-auth/react";
+import { Clock, X, Search } from "lucide-react";
+import React, { useRef } from "react";
+
 export default function DocumentListTab() {
   // ------------------------------
   // STATE (MOVED HERE)
@@ -51,6 +54,17 @@ export default function DocumentListTab() {
   const [dateTo, setDateTo] = useState("");
 
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
+
+  const storageKey = `recent_document_search_${userId}`;
+
+  const [searchInput, setSearchInput] = useState("");
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [showRecentDropdown, setShowRecentDropdown] = useState(false);
+
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
 
   // ------------------------------
   // DATA FETCH (MOVED HERE)
@@ -85,6 +99,60 @@ export default function DocumentListTab() {
   useEffect(() => {
     loadDocuments();
   }, [loadDocuments]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(event.target as Node)
+      ) {
+        setShowRecentDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      setRecentSearches(JSON.parse(saved));
+    }
+  }, [storageKey, userId]);
+
+  const saveRecentSearch = (value: string) => {
+    if (!value || !userId) return;
+
+    const updated = [value, ...recentSearches.filter((v) => v !== value)].slice(
+      0,
+      5,
+    );
+
+    setRecentSearches(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+  };
+
+  const applySearch = () => {
+    const trimmed = searchInput.trim();
+
+    if (trimmed) {
+      saveRecentSearch(trimmed);
+    }
+
+    setSearch(trimmed);
+    setPage(1);
+    setShowRecentDropdown(false);
+  };
+
+  const removeRecentSearch = (value: string) => {
+    const updated = recentSearches.filter((v) => v !== value);
+    setRecentSearches(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+  };
 
   // ------------------------------
   // DOWNLOAD (MOVED HERE)
@@ -251,17 +319,79 @@ export default function DocumentListTab() {
     <>
       {/* Search + Filters */}
       <div className="flex items-center justify-between mb-4">
-        <div className="relative w-100">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-5 w-5 mt-1" />
-          <Input
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            className="pl-9 rounded-full"
-          />
+        <div
+          ref={searchWrapperRef}
+          className="relative flex items-center gap-2"
+        >
+          <div className="relative">
+            <Input
+              placeholder="Search By Document Name, Uploaded By, Document Type or Property/Tenant"
+              value={searchInput}
+              onChange={(e) => {
+                const value = e.target.value;
+
+                setSearchInput(value);
+                setShowRecentDropdown(true);
+
+                // reload all when cleared
+                if (!value.trim()) {
+                  setSearch("");
+                  setPage(1);
+                }
+              }}
+              onFocus={() => setShowRecentDropdown(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") applySearch();
+              }}
+              className="w-[600px]"
+            />
+
+            {/* Recent search dropdown */}
+            {showRecentDropdown && recentSearches.length > 0 && (
+              <div className="absolute top-full left-0 w-full bg-white border rounded-md shadow-md z-50 mt-1 max-h-60 overflow-auto">
+                {recentSearches
+                  .filter((item) =>
+                    item.toLowerCase().includes(searchInput.toLowerCase()),
+                  )
+                  .map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer group"
+                    >
+                      <div
+                        className="flex items-center gap-2 flex-1"
+                        onClick={() => {
+                          setSearchInput(item);
+                          saveRecentSearch(item);
+                          setSearch(item);
+                          setPage(1);
+                          setShowRecentDropdown(false);
+                        }}
+                      >
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        {item}
+                      </div>
+
+                      <X
+                        className="w-4 h-4 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeRecentSearch(item);
+                        }}
+                      />
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          <Button
+            onClick={applySearch}
+            className="bg-blue-700 text-white hover:bg-blue-500 mt-2 flex items-center gap-2"
+          >
+            <Search className="w-4 h-4" />
+            Search
+          </Button>
         </div>
 
         <div className="flex gap-3">
@@ -277,7 +407,7 @@ export default function DocumentListTab() {
           />
 
           <Button
-            className="bg-blue-700 text-white"
+            className="bg-blue-700 text-white mt-2"
             onClick={() => {
               setDateFrom(draftDateFrom);
               setDateTo(draftDateTo);
@@ -288,7 +418,7 @@ export default function DocumentListTab() {
           </Button>
 
           <Button
-            className="bg-red-700 text-white"
+            className="bg-red-700 text-white mt-2"
             onClick={() => {
               setDraftDateFrom("");
               setDraftDateTo("");

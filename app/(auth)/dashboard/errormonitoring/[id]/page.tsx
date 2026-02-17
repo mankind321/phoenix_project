@@ -18,7 +18,11 @@ import {
   Calendar,
   DollarSign,
   Briefcase,
+  File,
 } from "lucide-react";
+
+import { Download } from "lucide-react";
+import { toast } from "sonner";
 
 /* ----------------------------------------------------
 TYPE — FULL document_registry STRUCTURE
@@ -39,6 +43,8 @@ export default function ErrorMonitoringViewPage({
   const [data, setData] = useState<ErrorMonitoringData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [downloadingFile, setDownloadingFile] = useState(false);
+
   useEffect(() => {
     if (!id) return;
 
@@ -58,6 +64,45 @@ export default function ErrorMonitoringViewPage({
 
     fetchData();
   }, [id]);
+
+  const handleDownloadFile = async () => {
+    if (!document?.source_file_path) {
+      toast?.error?.("No file available.");
+      return;
+    }
+
+    try {
+      setDownloadingFile(true);
+
+      const downloadUrl = `/api/gcp/download?path=${encodeURIComponent(
+        document.source_file_path,
+      )}`;
+
+      // Check if file exists
+      const res = await fetch(downloadUrl, { method: "HEAD" });
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          toast?.error?.("File not found.");
+        } else if (res.status === 401) {
+          toast?.error?.("Unauthorized.");
+        } else {
+          toast?.error?.("File not available.");
+        }
+        return;
+      }
+
+      // Download file
+      window.open(downloadUrl, "_blank");
+
+      toast?.success?.("Download started.");
+    } catch (err) {
+      console.error(err);
+      toast?.error?.("Unable to download file.");
+    } finally {
+      setDownloadingFile(false);
+    }
+  };
 
   if (loading) return <CenterText text="Loading error monitoring record..." />;
 
@@ -85,6 +130,30 @@ export default function ErrorMonitoringViewPage({
             value={document.extraction_confidence_level_percentage}
           />
           <InfoItem label="Remarks" value={document.remarks} />
+        </Grid3>
+      </InfoSection>
+
+      {/* File Download */}
+
+      <InfoSection title="File" icon={<File />}>
+        <Grid3>
+          <div>
+            {document.source_file_path ? (
+              <Button
+                onClick={handleDownloadFile}
+                disabled={downloadingFile}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400"
+              >
+                <Download className="w-4 h-4" />
+
+                {downloadingFile ? "Checking..." : "Download File"}
+              </Button>
+            ) : (
+              <div className="border rounded px-3 py-2 bg-gray-50 text-sm text-gray-500">
+                No file available
+              </div>
+            )}
+          </div>
         </Grid3>
       </InfoSection>
 

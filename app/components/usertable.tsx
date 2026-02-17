@@ -50,6 +50,9 @@ import {
 
 import { toast } from "sonner";
 
+import { Clock, X, Search as SearchIcon } from "lucide-react";
+import { useRef } from "react";
+
 interface User {
   userid: number;
   first_name: string;
@@ -65,7 +68,7 @@ interface User {
   license_expiration: string;
   username?: string;
   manager?: string;
-  accountid:string;
+  accountid: string;
 }
 
 // ========================
@@ -153,6 +156,69 @@ export default function UserTable() {
     null,
   );
 
+  const userId = session?.user?.id;
+  const storageKey = `recent_user_search_${userId}`;
+
+  const [searchInput, setSearchInput] = React.useState("");
+  const [recentSearches, setRecentSearches] = React.useState<string[]>([]);
+  const [showRecentDropdown, setShowRecentDropdown] = React.useState(false);
+
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!userId) return;
+
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      setRecentSearches(JSON.parse(saved));
+    }
+  }, [storageKey, userId]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(event.target as Node)
+      ) {
+        setShowRecentDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const saveRecentSearch = (value: string) => {
+    if (!value || !userId) return;
+
+    const updated = [value, ...recentSearches.filter((v) => v !== value)].slice(
+      0,
+      5,
+    );
+
+    setRecentSearches(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+  };
+
+  const applySearch = () => {
+    const trimmed = searchInput.trim();
+
+    if (trimmed) {
+      saveRecentSearch(trimmed);
+    }
+
+    setGlobalFilter(trimmed);
+    setPage(1);
+    setShowRecentDropdown(false);
+  };
+
+  const removeRecentSearch = (value: string) => {
+    const updated = recentSearches.filter((v) => v !== value);
+    setRecentSearches(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+  };
+
   // ========================
   // FETCH USERS
   // ========================
@@ -191,7 +257,7 @@ export default function UserTable() {
         { method: "POST" },
       );
 
-      console.log("Account ID:",user.accountid);
+      console.log("Account ID:", user.accountid);
 
       const data = await res.json();
 
@@ -334,17 +400,85 @@ export default function UserTable() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <Input
-            placeholder="Search users..."
-            value={globalFilter}
-            onChange={(e) => {
-              setGlobalFilter(e.target.value);
-              setPage(1);
-            }}
-            className="w-full md:w-[350px]"
-          />
+        <div
+          ref={searchWrapperRef}
+          className="flex items-center gap-3 w-full md:w-auto relative"
+        >
+          {/* Search Input */}
+          <div className="relative w-full md:w-[350px]">
+            <Input
+              placeholder="Search users..."
+              value={searchInput}
+              onChange={(e) => {
+                const value = e.target.value;
 
+                setSearchInput(value);
+                setShowRecentDropdown(true);
+
+                // reload all users when cleared
+                if (!value.trim()) {
+                  setGlobalFilter("");
+                  setPage(1);
+                }
+              }}
+              onFocus={() => setShowRecentDropdown(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") applySearch();
+              }}
+              className="w-full"
+            />
+
+            {/* Recent Search Dropdown */}
+            {showRecentDropdown && recentSearches.length > 0 && (
+              <div className="absolute top-full left-0 w-full bg-white border rounded-md shadow-md z-50 mt-1 max-h-60 overflow-auto">
+                {recentSearches
+                  .filter((item) =>
+                    item.toLowerCase().includes(searchInput.toLowerCase()),
+                  )
+                  .map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer group"
+                    >
+                      <div
+                        className="flex items-center gap-2 flex-1"
+                        onClick={() => {
+                          setSearchInput(item);
+                          saveRecentSearch(item);
+
+                          setGlobalFilter(item);
+                          setPage(1);
+
+                          setShowRecentDropdown(false);
+                        }}
+                      >
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        {item}
+                      </div>
+
+                      <X
+                        className="w-4 h-4 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeRecentSearch(item);
+                        }}
+                      />
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* Search Button */}
+          <Button
+            onClick={applySearch}
+            className="bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
+          >
+            <SearchIcon className="w-4 h-4" />
+            Search
+          </Button>
+
+          {/* Add User */}
           <Button
             className="bg-blue-600 text-white hover:bg-blue-700"
             onClick={() => router.push("/dashboard/users/add")}

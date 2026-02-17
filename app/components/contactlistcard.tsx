@@ -35,6 +35,7 @@ import {
   ChevronRight,
   Contact,
   Contact2,
+  SearchIcon,
 } from "lucide-react";
 
 import {
@@ -45,6 +46,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
+import { Clock, X } from "lucide-react";
 
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
@@ -151,6 +154,15 @@ export default function ContactTable() {
   const [selectedContact, setSelectedContact] = React.useState<Contact | null>(
     null,
   );
+
+  const userId = session?.user?.id;
+  const storageKey = `recent_contact_search_${userId}`;
+
+  const [searchInput, setSearchInput] = React.useState("");
+  const [recentSearches, setRecentSearches] = React.useState<string[]>([]);
+  const [showRecentDropdown, setShowRecentDropdown] = React.useState(false);
+
+  const searchWrapperRef = React.useRef<HTMLDivElement>(null);
 
   /* ------------------ FETCH DATA ---------------------- */
   const loadContacts = React.useCallback(async () => {
@@ -289,6 +301,63 @@ export default function ContactTable() {
     [router],
   );
 
+  React.useEffect(() => {
+    if (!userId) return;
+
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      setRecentSearches(JSON.parse(saved));
+    }
+  }, [storageKey, userId]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(event.target as Node)
+      ) {
+        setShowRecentDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const saveRecentSearch = (value: string) => {
+    if (!value || !userId) return;
+
+    const updated = [value, ...recentSearches.filter((v) => v !== value)].slice(
+      0,
+      5,
+    );
+
+    setRecentSearches(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+  };
+
+  const applySearch = () => {
+    const trimmed = searchInput.trim();
+
+    // Save only if not empty
+    if (trimmed) {
+      saveRecentSearch(trimmed);
+    }
+
+    // Always apply filter (even empty)
+    setGlobalFilter(trimmed);
+
+    setPage(1);
+    setShowRecentDropdown(false);
+  };
+
+  const removeRecentSearch = (value: string) => {
+    const updated = recentSearches.filter((v) => v !== value);
+    setRecentSearches(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+  };
+
   /* ------------------ TABLE INSTANCE ---------------------- */
   const table = useReactTable({
     data: contacts,
@@ -319,17 +388,87 @@ export default function ContactTable() {
           <p className="text-sm text-gray-500">Manage broker contacts.</p>
         </div>
 
-        <div className="flex gap-3 items-center w-full md:w-auto">
-          <Input
-            placeholder="Search contacts..."
-            value={globalFilter}
-            onChange={(e) => {
-              setGlobalFilter(e.target.value);
-              setPage(1);
-            }}
-            className="w-full md:w-[350px]"
-          />
+        <div
+          ref={searchWrapperRef}
+          className="flex gap-3 items-center w-full md:w-auto relative"
+        >
+          {/* Search input + dropdown */}
+          <div className="relative w-full md:w-[350px]">
+            <Input
+              placeholder="Search contacts..."
+              value={searchInput}
+              onChange={(e) => {
+                const value = e.target.value;
 
+                setSearchInput(value);
+                setShowRecentDropdown(true);
+
+                // ✅ If input is cleared, reload ALL contacts immediately
+                if (!value.trim()) {
+                  setGlobalFilter("");
+                  setPage(1);
+                }
+              }}
+              onFocus={() => {
+                setShowRecentDropdown(true);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  applySearch();
+                }
+              }}
+              className="w-full"
+            />
+
+            {/* Recent search dropdown */}
+            {showRecentDropdown && recentSearches.length > 0 && (
+              <div className="absolute top-full left-0 w-full bg-white border rounded-md shadow-md z-50 mt-1 max-h-60 overflow-auto">
+                {recentSearches
+                  .filter((item) =>
+                    item.toLowerCase().includes(searchInput.toLowerCase()),
+                  )
+                  .map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer group"
+                    >
+                      <div
+                        className="flex items-center gap-2 flex-1"
+                        onClick={() => {
+                          setSearchInput(item);
+                          saveRecentSearch(item);
+                          setGlobalFilter(item);
+                          setPage(1);
+                          setShowRecentDropdown(false);
+                        }}
+                      >
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        {item}
+                      </div>
+
+                      <X
+                        className="w-4 h-4 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeRecentSearch(item);
+                        }}
+                      />
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* Search button */}
+          <Button
+            onClick={applySearch}
+            className="bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2 mt-2"
+          >
+            <SearchIcon className="w-4 h-4" />
+            Search
+          </Button>
+
+          {/* Add Contact button */}
           <Button
             className="bg-blue-600 text-white hover:bg-blue-700 mt-2"
             onClick={() => router.push("/dashboard/contact/add")}

@@ -15,6 +15,10 @@ import {
   Search as SearchIcon,
 } from "lucide-react";
 
+import { useSession } from "next-auth/react";
+import { Clock, X } from "lucide-react";
+import React, { useRef } from "react";
+
 type Lease = {
   lease_id?: string;
   unique_id?: string;
@@ -60,6 +64,16 @@ export default function LeaseListPage() {
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
 
+  const { data: session } = useSession();
+  const userId = session?.user?.id;
+
+  const storageKey = `recent_lease_search_${userId}`;
+
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [showRecentDropdown, setShowRecentDropdown] = useState(false);
+
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
+
   /* ======================================================
      FETCH LEASES (ONLY reacts to applied search)
   ====================================================== */
@@ -83,9 +97,7 @@ export default function LeaseListPage() {
 
       if (data?.data) {
         setLeases(data.data);
-        setTotalPages(
-          Math.max(1, Math.ceil((data.total ?? 0) / pageSize)),
-        );
+        setTotalPages(Math.max(1, Math.ceil((data.total ?? 0) / pageSize)));
       } else {
         setLeases([]);
         setTotalPages(1);
@@ -95,16 +107,7 @@ export default function LeaseListPage() {
     }
 
     fetchData();
-  }, [
-    page,
-    pageSize,
-    search,
-    status,
-    fromDate,
-    toDate,
-    minPrice,
-    maxPrice,
-  ]);
+  }, [page, pageSize, search, status, fromDate, toDate, minPrice, maxPrice]);
 
   /* ======================================================
      RESET PAGE WHEN APPLIED FILTERS CHANGE
@@ -113,11 +116,67 @@ export default function LeaseListPage() {
     setPage(1);
   }, [search, status, fromDate, toDate, minPrice, maxPrice]);
 
+  useEffect(() => {
+    if (!userId) return;
+
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      setRecentSearches(JSON.parse(saved));
+    }
+  }, [storageKey, userId]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchWrapperRef.current &&
+        !searchWrapperRef.current.contains(event.target as Node)
+      ) {
+        setShowRecentDropdown(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   /* ======================================================
      APPLY SEARCH (MANUAL)
   ====================================================== */
   const applySearch = () => {
-    setSearch(searchInput.trim());
+    const trimmed = searchInput.trim();
+
+    // Save only if not empty
+    if (trimmed) {
+      saveRecentSearch(trimmed);
+    }
+
+    // Always apply search (even empty = load all)
+    setSearch(trimmed);
+
+    // Reset pagination
+    setPage(1);
+
+    // Close dropdown
+    setShowRecentDropdown(false);
+  };
+
+  const saveRecentSearch = (value: string) => {
+    if (!value || !userId) return;
+
+    const updated = [value, ...recentSearches.filter((v) => v !== value)].slice(
+      0,
+      5,
+    );
+
+    setRecentSearches(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+  };
+
+  const removeRecentSearch = (value: string) => {
+    const updated = recentSearches.filter((v) => v !== value);
+    setRecentSearches(updated);
+    localStorage.setItem(storageKey, JSON.stringify(updated));
   };
 
   return (
@@ -137,16 +196,69 @@ export default function LeaseListPage() {
           Search tenant, property, landlord, or comments.
         </p>
 
-        <div className="flex gap-2 items-center">
-          <Input
-            className="w-full h-10"
-            placeholder="Search tenant, property, landlord…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") applySearch();
-            }}
-          />
+        <div
+          ref={searchWrapperRef}
+          className="flex gap-2 items-center relative"
+        >
+          <div className="relative w-full">
+            <Input
+              className="w-full h-10"
+              placeholder="Search tenant, property, landlord…"
+              value={searchInput}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSearchInput(value);
+                setShowRecentDropdown(true);
+
+                // If cleared, reload all records immediately
+                if (!value.trim()) {
+                  setSearch("");
+                  setPage(1);
+                }
+              }}
+              onFocus={() => setShowRecentDropdown(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") applySearch();
+              }}
+            />
+
+            {/* Recent search dropdown */}
+            {showRecentDropdown && recentSearches.length > 0 && (
+              <div className="absolute top-full left-0 w-full bg-white border rounded-md shadow-md z-50 mt-1 max-h-60 overflow-auto">
+                {recentSearches
+                  .filter((item) =>
+                    item.toLowerCase().includes(searchInput.toLowerCase()),
+                  )
+                  .map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer group"
+                    >
+                      <div
+                        className="flex items-center gap-2 flex-1"
+                        onClick={() => {
+                          setSearchInput(item);
+                          saveRecentSearch(item);
+                          setSearch(item);
+                          setShowRecentDropdown(false);
+                        }}
+                      >
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        {item}
+                      </div>
+
+                      <X
+                        className="w-4 h-4 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeRecentSearch(item);
+                        }}
+                      />
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
 
           <Button
             onClick={applySearch}
@@ -164,7 +276,9 @@ export default function LeaseListPage() {
       <div>
         <div className="flex items-center gap-2 mb-4">
           <FileText className="w-5 h-5 text-gray-600" />
-          <h2 className="text-lg font-semibold text-gray-800">Tenant Information</h2>
+          <h2 className="text-lg font-semibold text-gray-800">
+            Tenant Information
+          </h2>
         </div>
 
         {isLoading && (
@@ -198,17 +312,15 @@ export default function LeaseListPage() {
 
                       <div className="space-y-1">
                         <h3 className="font-semibold text-gray-800">
-                            {lease.tenant ?? "—"}
+                          {lease.tenant ?? "—"}
                         </h3>
 
                         <p className="text-xs text-gray-500">
-                          {lease.property_name ??
-                            lease.property_address}
+                          {lease.property_name ?? lease.property_address}
                         </p>
 
                         <p className="text-xs text-gray-500">
-                          Landlord:{" "}
-                          <strong>{lease.landlord ?? "—"}</strong>
+                          Landlord: <strong>{lease.landlord ?? "—"}</strong>
                         </p>
 
                         <p className="text-xs text-gray-400">
@@ -235,9 +347,7 @@ export default function LeaseListPage() {
 
                   <div className="flex justify-between items-center mt-4">
                     <button
-                      onClick={() =>
-                        setExpanded(expanded === key ? null : key)
-                      }
+                      onClick={() => setExpanded(expanded === key ? null : key)}
                       className="text-sm text-blue-600 flex items-center gap-1"
                     >
                       {expanded === key ? (
@@ -268,16 +378,14 @@ export default function LeaseListPage() {
                   {expanded === key && (
                     <div className="mt-4 bg-gray-50 p-4 rounded-lg border text-sm">
                       <p>
-                        <strong>Property Type:</strong>{" "}
-                        {lease.property_type}
+                        <strong>Property Type:</strong> {lease.property_type}
                       </p>
                       <p>
                         <strong>Property Landlord:</strong>{" "}
                         {lease.property_landlord}
                       </p>
                       <p>
-                        <strong>Comments:</strong>{" "}
-                        {lease.comments ?? "—"}
+                        <strong>Comments:</strong> {lease.comments ?? "—"}
                       </p>
                     </div>
                   )}
