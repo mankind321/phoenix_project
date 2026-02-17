@@ -140,8 +140,6 @@ export async function PUT(
       "broker_name",
       "phone",
       "email",
-      "website",
-      "comments",
     ];
 
     for (const field of requiredFields) {

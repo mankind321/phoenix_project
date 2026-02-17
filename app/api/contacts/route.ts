@@ -152,8 +152,6 @@ export async function POST(req: Request) {
       "broker_name",
       "phone",
       "email",
-      "website",
-      "comments",
     ];
 
     for (const field of required) {

@@ -221,11 +221,14 @@ export default function ContactFormPage() {
   // =============================================
   //
   const validate = () => {
-    if (!form.broker_name.trim()) return "Broker name is required.";
-    if (!form.listing_company.trim()) return "Listing company is required.";
-    if (!form.phone.trim()) return "Phone is required.";
-    if (!form.email.trim()) return "Email is required.";
-    return null;
+    const missing: string[] = [];
+
+    if (!form.broker_name.trim()) missing.push("Broker Name");
+    if (!form.listing_company.trim()) missing.push("Listing Company");
+    if (!form.phone.trim()) missing.push("Phone");
+    if (!form.email.trim()) missing.push("Email");
+
+    return missing;
   };
 
   //
@@ -236,8 +239,34 @@ export default function ContactFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const v = validate();
-    if (v) return toast.error(v);
+    const missing = validate();
+
+    if (missing.length > 0) {
+      toast.error(
+        <>
+          <div className="font-semibold">Missing required fields:</div>
+          <ul className="list-disc ml-4 mt-1">
+            {missing.map((field) => (
+              <li key={field}>
+                {field
+                  .replace("_", " ")
+                  .replace(/\b\w/g, (c) => c.toUpperCase())}
+              </li>
+            ))}
+          </ul>
+        </>,
+      );
+
+      // ✅ ADD THIS BLOCK HERE (focus first missing field)
+      const firstMissing = missing[0];
+      const element = document.querySelector(
+        `[name="${firstMissing}"]`,
+      ) as HTMLElement | null;
+
+      element?.focus();
+
+      return;
+    }
 
     setSubmitting(true);
 
@@ -299,7 +328,7 @@ export default function ContactFormPage() {
   return (
     <div className="w-11/12 mx-auto mt-6 space-y-6">
       <h2 className="text-2xl font-semibold text-center">
-        {isEditMode ? "Edit Contact" : "Add New Contact"}
+        {isEditMode ? "Edit Contact Information" : "Add New Contact Information"}
       </h2>
 
       {loading ? (

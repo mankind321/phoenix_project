@@ -263,6 +263,18 @@ export default function DocumentListTab() {
       {
         accessorKey: "doc_type",
         header: "Document Type",
+        cell: ({ row }) => {
+          const value = row.getValue("doc_type") as string;
+
+          if (!value) return "";
+
+          // Convert to First Letter Uppercase
+          const formatted = value
+            .toLowerCase()
+            .replace(/\b\w/g, (char) => char.toUpperCase());
+
+          return formatted;
+        },
       },
       {
         id: "related",
