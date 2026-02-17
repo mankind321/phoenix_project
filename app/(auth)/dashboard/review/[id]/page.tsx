@@ -26,7 +26,7 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  Download
+  Download,
 } from "lucide-react";
 
 interface PropertyData {
@@ -58,6 +58,8 @@ export default function PropertyViewPage({
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
 
+  const [downloadingBrochure, setDownloadingBrochure] = useState(false);
+
   useEffect(() => {
     if (!propertyId) return;
 
@@ -77,6 +79,62 @@ export default function PropertyViewPage({
 
     fetchProperty();
   }, [propertyId]);
+
+  function normalizeGsUrl(url: string) {
+    if (!url) return "";
+
+    // gs://bucket/path
+    if (url.startsWith("gs://")) {
+      return url.replace(`gs://${process.env.NEXT_PUBLIC_GCP_BUCKET}/`, "");
+    }
+
+    // https://storage.googleapis.com/bucket/path
+    if (url.includes("storage.googleapis.com")) {
+      return url.split(`/${process.env.NEXT_PUBLIC_GCP_BUCKET}/`)[1];
+    }
+
+    // already normalized
+    return url;
+  }
+
+  /* -------------------------------------------
+   DOWNLOAD BROCHURE FUNCTION
+  --------------------------------------------*/
+  async function handleDownloadBrochure() {
+    if (!documentFiles?.file_url) {
+      toast.error("No brochure available.");
+      return;
+    }
+
+    try {
+      setDownloadingBrochure(true);
+
+      const fileUrl = documentFiles.file_url;
+
+      console.log("fileUrl:", fileUrl);
+
+      // CASE 1: Signed URL → use directly
+      if (fileUrl.startsWith("https://storage.googleapis.com")) {
+        window.open(fileUrl, "_blank");
+        toast.success("Download started.");
+        return;
+      }
+
+      // CASE 2: gs:// URL → use API
+      const clean = normalizeGsUrl(fileUrl);
+
+      const downloadUrl = `/api/gcp/download?path=${encodeURIComponent(clean)}`;
+
+      window.open(downloadUrl, "_blank");
+
+      toast.success("Download started.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to download file.");
+    } finally {
+      setDownloadingBrochure(false);
+    }
+  }
 
   /* -------------------------------------------
      APPROVE FUNCTION
@@ -186,7 +244,7 @@ export default function PropertyViewPage({
           Review Property Information
         </h1>
       </div>
- 
+
       {/* BASIC INFO */}
       <InfoSection icon={<Info />} title="Basic Information">
         <Grid2>
@@ -194,21 +252,22 @@ export default function PropertyViewPage({
           <InfoItem label="Type" value={property.type} />
           <InfoItem label="Landlord" value={property.landlord} />
           <InfoItem label="Status" value={property.status} />
-                    <div>
+          <div>
             {documentFiles.file_url ? (
               <Button
-                onClick={() =>
-                  window.open(
-                    `/api/gcp/download?path=${encodeURIComponent(
-                      documentFiles.file_url,
-                    )}`,
-                    "_blank",
-                  )
-                }
-                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 text-lg"
+                onClick={handleDownloadBrochure}
+                disabled={!documentFiles?.file_url || downloadingBrochure}
+                className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 text-lg disabled:bg-gray-400"
               >
-                <Download className="w-15 h-15" />
-                Download Property Brochure
+                {downloadingBrochure ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Download className="w-5 h-5" />
+                )}
+
+                {downloadingBrochure
+                  ? "Checking..."
+                  : "Download Property Brochure"}
               </Button>
             ) : (
               <p className="text-gray-500">No files uploaded.</p>

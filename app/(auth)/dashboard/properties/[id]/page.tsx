@@ -80,7 +80,24 @@ export default function PropertyViewPage({
     fetchProperty();
   }, [propertyId]);
 
-  const handleDownloadBrochure = async () => {
+  function normalizeGsUrl(url: string) {
+    if (!url) return "";
+
+    // gs://bucket/path
+    if (url.startsWith("gs://")) {
+      return url.replace(`gs://${process.env.NEXT_PUBLIC_GCP_BUCKET}/`, "");
+    }
+
+    // https://storage.googleapis.com/bucket/path
+    if (url.includes("storage.googleapis.com")) {
+      return url.split(`/${process.env.NEXT_PUBLIC_GCP_BUCKET}/`)[1];
+    }
+
+    // already normalized
+    return url;
+  }
+
+  async function handleDownloadBrochure() {
     if (!documentFiles?.file_url) {
       toast.error("No brochure available.");
       return;
@@ -89,37 +106,32 @@ export default function PropertyViewPage({
     try {
       setDownloadingBrochure(true);
 
-      const downloadUrl = `/api/gcp/download?path=${encodeURIComponent(
-        documentFiles.file_url,
-      )}`;
+      const fileUrl = documentFiles.file_url;
 
-      // Check if file exists first
-      const res = await fetch(downloadUrl, {
-        method: "HEAD",
-      });
+      console.log("fileUrl:", fileUrl);
 
-      if (!res.ok) {
-        if (res.status === 404) {
-          toast.error("Document file not found.");
-        } else if (res.status === 401) {
-          toast.error("Unauthorized access.");
-        } else {
-          toast.error("Document is not available for download.");
-        }
+      // CASE 1: Signed URL → use directly
+      if (fileUrl.startsWith("https://storage.googleapis.com")) {
+        window.open(fileUrl, "_blank");
+        toast.success("Download started.");
         return;
       }
 
-      // File exists → download
+      // CASE 2: gs:// URL → use API
+      const clean = normalizeGsUrl(fileUrl);
+
+      const downloadUrl = `/api/gcp/download?path=${encodeURIComponent(clean)}`;
+
       window.open(downloadUrl, "_blank");
 
       toast.success("Download started.");
     } catch (error) {
-      console.error("Download check failed:", error);
-      toast.error("Unable to verify document availability.");
+      console.error(error);
+      toast.error("Failed to download file.");
     } finally {
       setDownloadingBrochure(false);
     }
-  };
+  }
 
   if (loading)
     return (

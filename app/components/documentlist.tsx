@@ -196,6 +196,8 @@ export default function DocumentListTab() {
           clean,
         )}`;
 
+        console.log(downloadUrl);
+
         // Step 1: Check if exists using HEAD
         const check = await fetch(downloadUrl, {
           method: "HEAD",
