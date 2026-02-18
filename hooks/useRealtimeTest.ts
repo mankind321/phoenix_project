@@ -15,9 +15,16 @@ type DocumentRegistryRow = {
   user_id: string | null;
   file_name: string | null;
   extraction_status: "PASSED" | "FAILED" | string;
+  document_type: string | null;
 };
 
-export function useRealtimeTest(enabled: boolean) {
+export function useRealtimeTest(
+  enabled: boolean,
+  options?: {
+    onExtractionSuccess?: () => void;
+    onExtractionFailed?: () => void;
+  },
+) {
   const { data: session } = useSession();
 
   const subscribedRef = useRef(false);
@@ -61,6 +68,7 @@ export function useRealtimeTest(enabled: boolean) {
             },
             (payload: RealtimePostgresInsertPayload<DocumentRegistryRow>) => {
               const row = payload.new;
+
               if (row.user_id !== userId) {
                 console.warn("[realtime] user_id mismatch", {
                   expected: userId,
@@ -72,17 +80,33 @@ export function useRealtimeTest(enabled: boolean) {
               const toastId = `doc-${row.user_id}-${row.file_name}-${row.extraction_status}`;
 
               if (row.extraction_status === "PASSED") {
-                toast.success(
-                  `Data extraction for "${row.file_name ?? "document"}" has been successfully completed and forwarded to the Review page for evaluation.`,
-                  { id: toastId, duration: 30_000 }
-                );
+                // normalize doc_type
+                const normalizedDocType = row.document_type
+                  ?.toLowerCase()
+                  .replace(/_/g, " ")
+                  .trim();
+
+                const isRentRoll = normalizedDocType === "rent roll";
+
+                const message = isRentRoll
+                  ? `Data extraction for "${row.file_name ?? "document"}" has been successfully completed. See the Data in Tenant Page`
+                  : `Data extraction for "${row.file_name ?? "document"}" has been successfully completed and forwarded to the Review page for evaluation.`;
+
+                toast.success(message, {
+                  id: toastId,
+                  duration: 30_000,
+                });
+
+                options?.onExtractionSuccess?.();
               } else if (row.extraction_status === "FAILED") {
                 toast.error(
                   `The extraction process for "${row.file_name ?? "document"}" was unsuccessful. Please refer to the Error Document List in the Document Management Tab to investigate and resolve the issue.`,
-                  { id: toastId, duration: 30_000 }
+                  { id: toastId, duration: 30_000 },
                 );
+
+                options?.onExtractionFailed?.();
               }
-            }
+            },
           )
           .subscribe((status, err) => {
             console.log("[realtime] channel status:", status);
@@ -131,5 +155,5 @@ export function useRealtimeTest(enabled: boolean) {
       supabaseRef.current = null;
       console.groupEnd();
     };
-  }, [enabled, session?.user?.id]);
+  }, [enabled, options, session?.user?.id]);
 }

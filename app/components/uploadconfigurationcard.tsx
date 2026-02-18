@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 
 import {
@@ -17,6 +17,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { toast } from "sonner";
+
+import { useRealtimeTest } from "@/hooks/useRealtimeTest";
 
 import ErrorMonitoringTable from "./errormonitoringcard";
 import DocumentListTab from "./documentlist";
@@ -40,6 +42,9 @@ export default function DocumentUploadSection() {
   const [docType, setDocType] = useState("");
   const [activeTab, setActiveTab] = useState("upload");
 
+  const [errorCount, setErrorCount] = useState(0);
+  const [documentCount, setDocumentCount] = useState(0);
+
   const reachedLimit = files.length >= 1000;
   const maxFiles = 1000;
 
@@ -59,15 +64,62 @@ export default function DocumentUploadSection() {
     "image/webp": "WEBP",
   };
 
-  useEffect(() => {
-    const savedTab = sessionStorage.getItem("documentsTab");
-    if (savedTab) {
-      setActiveTab(savedTab);
+  const getAllowedFileTypesLabel = () =>
+    allowedMimeTypes.map((t) => mimeTypeLabels[t] || t).join(", ");
+
+  const fetchErrorCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/errormonitoring/count");
+
+      if (!res.ok) throw new Error("Failed to fetch error count");
+
+      const json = await res.json();
+
+      setErrorCount(json.total ?? 0);
+    } catch (err) {
+      console.error("Error fetching error count:", err);
     }
   }, []);
 
-  const getAllowedFileTypesLabel = () =>
-    allowedMimeTypes.map((t) => mimeTypeLabels[t] || t).join(", ");
+  const fetchDocumentCount = useCallback(async () => {
+    try {
+      const res = await fetch("/api/document/count");
+
+      if (!res.ok) throw new Error("Failed to fetch document count");
+
+      const json = await res.json();
+
+      setDocumentCount(json.total ?? 0);
+    } catch (err) {
+      console.error("Document count fetch error:", err);
+    }
+  }, []);
+
+  useRealtimeTest(true, {
+    onExtractionFailed: fetchErrorCount,
+  });
+
+  useEffect(() => {
+    const savedTab = sessionStorage.getItem("documentsTab");
+
+    if (savedTab) {
+      setActiveTab(savedTab);
+    }
+    fetchErrorCount();
+    fetchDocumentCount();
+  }, [fetchDocumentCount, fetchErrorCount]);
+
+  useEffect(() => {
+    const handler = () => {
+      fetchDocumentCount();
+    };
+
+    window.addEventListener("document-list-updated", handler);
+
+    return () => {
+      window.removeEventListener("document-list-updated", handler);
+    };
+  }, [fetchDocumentCount]);
 
   // ------------------------------
   // FILE HANDLING
@@ -264,6 +316,9 @@ export default function DocumentUploadSection() {
       toast.success("All files uploaded successfully.");
 
       setFiles([]);
+
+      // notify document list to refresh
+      window.dispatchEvent(new Event("document-list-updated"));
     } catch (error: any) {
       toast.dismiss();
 
@@ -300,15 +355,33 @@ export default function DocumentUploadSection() {
         onValueChange={(value) => {
           setActiveTab(value);
           sessionStorage.setItem("documentsTab", value);
+
+          if (value === "errorList") {
+            fetchErrorCount();
+          }
         }}
         className="w-full"
       >
         <TabsList className="mb-6">
           <TabsTrigger value="upload">Upload Document</TabsTrigger>
 
-          <TabsTrigger value="list">Document List</TabsTrigger>
+          <TabsTrigger value="list">
+            Document List
+            {documentCount > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-blue-600 text-white rounded-full">
+                {documentCount}
+              </span>
+            )}
+          </TabsTrigger>
 
-          <TabsTrigger value="errorList">Error Document List</TabsTrigger>
+          <TabsTrigger value="errorList">
+            Error Document List
+            {errorCount > 0 && (
+              <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-red-500 text-white rounded-full">
+                {errorCount}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upload">
@@ -426,7 +499,7 @@ export default function DocumentUploadSection() {
         </TabsContent>
 
         <TabsContent value="errorList">
-          <ErrorMonitoringTable />
+          <ErrorMonitoringTable onDeleteSuccess={fetchErrorCount} />
         </TabsContent>
       </Tabs>
     </div>

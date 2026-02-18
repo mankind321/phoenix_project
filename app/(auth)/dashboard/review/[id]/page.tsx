@@ -168,8 +168,12 @@ export default function PropertyViewPage({
         loading: "Approving property...",
 
         success: () => {
+          // ✅ notify sidebar to refresh Review badge
+          window.dispatchEvent(new Event("review-count-updated"));
+
           router.push("/dashboard/review");
           router.refresh();
+
           return "Property approved successfully";
         },
 
@@ -207,8 +211,12 @@ export default function PropertyViewPage({
         loading: "Rejecting and deleting property...",
 
         success: () => {
+          // ✅ notify sidebar to refresh Review badge
+          window.dispatchEvent(new Event("review-count-updated"));
+
           router.push("/dashboard/review");
           router.refresh();
+
           return "Property rejected and deleted successfully";
         },
 

@@ -4,11 +4,7 @@ import * as React from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import {
   CircleGauge,
@@ -36,12 +32,50 @@ import {
 
 import { ChangePasswordModal } from "@/app/components/changePasswordModal";
 
+import { useRealtimeTest } from "@/hooks/useRealtimeTest";
+
 export const TopHeaderAdmin: React.FC = () => {
   const { data: session } = useSession();
   const router = useRouter();
   const pathname = usePathname();
 
   const [imageUrl, setImageUrl] = React.useState<string>("/avatar.jpg");
+
+  const [reviewCount, setReviewCount] = React.useState(0);
+
+  const fetchReviewCount = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/review/count");
+
+      if (!res.ok) throw new Error("Failed to fetch review count");
+
+      const json = await res.json();
+
+      setReviewCount(json.total ?? 0);
+    } catch (err) {
+      console.error("Review count fetch error:", err);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchReviewCount();
+  }, [fetchReviewCount]);
+
+  React.useEffect(() => {
+    const handler = () => {
+      fetchReviewCount();
+    };
+
+    window.addEventListener("review-count-updated", handler);
+
+    return () => {
+      window.removeEventListener("review-count-updated", handler);
+    };
+  }, [fetchReviewCount]);
+
+  useRealtimeTest(true, {
+    onExtractionSuccess: fetchReviewCount,
+  });
 
   // --------------------------------------------------
   // Avatar Fetch Logic
@@ -53,7 +87,7 @@ export const TopHeaderAdmin: React.FC = () => {
         if (!profilePath) return;
 
         const res = await fetch(
-          `/api/gcp/getSignedUrl?path=${encodeURIComponent(profilePath)}&ts=${Date.now()}`
+          `/api/gcp/getSignedUrl?path=${encodeURIComponent(profilePath)}&ts=${Date.now()}`,
         );
 
         const data = await res.json();
@@ -78,7 +112,7 @@ export const TopHeaderAdmin: React.FC = () => {
   const displayName =
     firstName || lastName
       ? `${firstName} ${lastName}`.trim()
-      : session?.user?.username ?? "Guest";
+      : (session?.user?.username ?? "Guest");
 
   const userInitials = (firstName || session?.user?.username || "G")
     .split(" ")
@@ -116,19 +150,53 @@ export const TopHeaderAdmin: React.FC = () => {
   // Navigation Items
   // --------------------------------------------------
   const navItems = [
-    { label: "Property Search", path: "/dashboard/properties", icon: <Home className="w-4 h-4" /> },
-    { label: "Tenants", path: "/dashboard/leases", icon: <ClipboardList className="w-4 h-4" /> },
-    { label: "Contacts", path: "/dashboard/contact", icon: <Contact className="w-4 h-4" /> },
-    { label: "Documents", path: "/dashboard/documents", icon: <FileText className="w-4 h-4" /> },
-    { label: "Statistics", path: "/dashboard/main", icon: <CircleGauge className="w-4 h-4" /> },
-    { label: "Review", path: "/dashboard/review", icon: <View className="w-4 h-4" /> },
-    { label: "Audit Trail", path: "/dashboard/audit-trail", icon: <Activity className="w-4 h-4" /> },
-    { label: "Users", path: "/dashboard/users", icon: <Users className="w-4 h-4" /> },
+    {
+      label: "Property Search",
+      path: "/dashboard/properties",
+      icon: <Home className="w-4 h-4" />,
+    },
+    {
+      label: "Tenants",
+      path: "/dashboard/leases",
+      icon: <ClipboardList className="w-4 h-4" />,
+    },
+    {
+      label: "Contacts",
+      path: "/dashboard/contact",
+      icon: <Contact className="w-4 h-4" />,
+    },
+    {
+      label: "Documents",
+      path: "/dashboard/documents",
+      icon: <FileText className="w-4 h-4" />,
+    },
+    {
+      label: "Statistics",
+      path: "/dashboard/main",
+      icon: <CircleGauge className="w-4 h-4" />,
+    },
+
+    {
+      label: "Review",
+      path: "/dashboard/review",
+      icon: <View className="w-4 h-4" />,
+      badge: reviewCount,
+    },
+
+    {
+      label: "Audit Trail",
+      path: "/dashboard/audit-trail",
+      icon: <Activity className="w-4 h-4" />,
+    },
+    {
+      label: "Users",
+      path: "/dashboard/users",
+      icon: <Users className="w-4 h-4" />,
+    },
   ];
 
   return (
     <aside className="sidebar-scroll h-screen w-64 bg-white border-r border-gray-200 flex flex-col">
-      
       {/* Logo */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-gray-200">
         <div className="w-12 h-12 bg-blue-600 rounded-md flex items-center justify-center">
@@ -137,7 +205,9 @@ export const TopHeaderAdmin: React.FC = () => {
           </div>
         </div>
         <div className="flex flex-col leading-tight">
-          <h1 className="text-lg font-semibold text-black">Commerical Property Database</h1>
+          <h1 className="text-lg font-semibold text-black">
+            Commerical Property Database
+          </h1>
           <span className="text-xs text-gray-600">Investment Properties</span>
         </div>
       </div>
@@ -159,7 +229,15 @@ export const TopHeaderAdmin: React.FC = () => {
                   }`}
                 >
                   {item.icon}
-                  <span>{item.label}</span>
+                  <div className="flex items-center justify-between w-full">
+                    <span>{item.label}</span>
+
+                    {(item.badge ?? 0) > 0 && (
+                      <span className="ml-2 px-2 py-0.5 text-xs font-semibold bg-red-500 text-white rounded-full">
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
                 </button>
               </li>
             );
@@ -177,8 +255,12 @@ export const TopHeaderAdmin: React.FC = () => {
                 <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col">
-                <span className="font-medium text-gray-800 text-sm">{displayName}</span>
-                <span className="text-xs text-gray-500">{session?.user?.role}</span>
+                <span className="font-medium text-gray-800 text-sm">
+                  {displayName}
+                </span>
+                <span className="text-xs text-gray-500">
+                  {session?.user?.role}
+                </span>
               </div>
             </div>
           </DropdownMenuTrigger>
@@ -214,7 +296,6 @@ export const TopHeaderAdmin: React.FC = () => {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
     </aside>
   );
 };

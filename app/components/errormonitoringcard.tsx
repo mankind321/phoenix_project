@@ -145,7 +145,11 @@ function formatDateTime(value: string) {
 
 /* ------------------ MAIN ---------------------- */
 
-export default function ErrorMonitoringTable() {
+export default function ErrorMonitoringTable({
+  onDeleteSuccess,
+}: {
+  onDeleteSuccess?: () => void;
+}) {
   const router = useRouter();
 
   const [data, setData] = React.useState<ErrorMonitoringRecord[]>([]);
@@ -530,12 +534,14 @@ export default function ErrorMonitoringTable() {
           </Button>
         </div>
       </div>
-
       <DeleteErrorMonitoringModal
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         record={selected}
-        onDeleted={loadRecords}
+        onDeleted={() => {
+          loadRecords(); // refresh table
+          onDeleteSuccess?.(); // refresh badge count in parent
+        }}
       />
     </div>
   );
