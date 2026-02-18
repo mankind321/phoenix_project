@@ -1,10 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { createRealtimeClient } from "@/lib/supabaseRealtimeClient";
 import type {
   RealtimePostgresInsertPayload,
@@ -26,6 +26,7 @@ export function useRealtimeTest(
   },
 ) {
   const { data: session } = useSession();
+  const router = useRouter();
 
   const subscribedRef = useRef(false);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -34,19 +35,9 @@ export function useRealtimeTest(
   useEffect(() => {
     const userId = session?.user?.id;
 
-    console.group("[realtime] useEffect");
-    console.log("enabled:", enabled);
-    console.log("userId:", userId);
-    console.log("already subscribed:", subscribedRef.current);
-    console.groupEnd();
-
     if (!enabled || !userId || subscribedRef.current) return;
 
-    let cancelled = false;
-
     async function init() {
-      console.group("[realtime] init");
-
       try {
         const res = await fetch("/api/realtime-token", { method: "POST" });
         const json = await res.json();
@@ -69,39 +60,64 @@ export function useRealtimeTest(
             (payload: RealtimePostgresInsertPayload<DocumentRegistryRow>) => {
               const row = payload.new;
 
-              if (row.user_id !== userId) {
-                console.warn("[realtime] user_id mismatch", {
-                  expected: userId,
-                  actual: row.user_id,
-                });
-                return;
-              }
+              if (row.user_id !== userId) return;
 
               const toastId = `doc-${row.user_id}-${row.file_name}-${row.extraction_status}`;
 
+              const normalizedDocType = row.document_type
+                ?.toLowerCase()
+                .replace(/_/g, " ")
+                .trim();
+
+              const isRentRoll = normalizedDocType === "rent roll";
+
+              // ========================
+              // SUCCESS
+              // ========================
               if (row.extraction_status === "PASSED") {
-                // normalize doc_type
-                const normalizedDocType = row.document_type
-                  ?.toLowerCase()
-                  .replace(/_/g, " ")
-                  .trim();
-
-                const isRentRoll = normalizedDocType === "rent roll";
-
                 const message = isRentRoll
-                  ? `Data extraction for "${row.file_name ?? "document"}" has been successfully completed. See the Data in Tenant Page`
-                  : `Data extraction for "${row.file_name ?? "document"}" has been successfully completed and forwarded to the Review page for evaluation.`;
+                  ? `Data extraction for "${row.file_name ?? "document"}" completed. Click to view Tenant data.`
+                  : `Data extraction for "${row.file_name ?? "document"}" completed. Click to view Review page.`;
 
-                toast.success(message, {
-                  id: toastId,
-                  duration: 30_000,
-                });
+                toast.success(
+                  <div
+                    onClick={() => toast.dismiss(toastId)}
+                    style={{
+                      cursor: "pointer",
+                      width: "100%",
+                    }}
+                  >
+                    {message}
+                  </div>,
+                  {
+                    id: toastId,
+                    duration: 30_000,
+                  },
+                );
 
                 options?.onExtractionSuccess?.();
-              } else if (row.extraction_status === "FAILED") {
+              }
+
+              // ========================
+              // FAILED
+              // ========================
+              if (row.extraction_status === "FAILED") {
+                const message = `Extraction failed for "${row.file_name ?? "document"}". Click to view errors.`;
+
                 toast.error(
-                  `The extraction process for "${row.file_name ?? "document"}" was unsuccessful. Please refer to the Error Document List in the Document Management Tab to investigate and resolve the issue.`,
-                  { id: toastId, duration: 30_000 },
+                  <div
+                    onClick={() => toast.dismiss(toastId)}
+                    style={{
+                      cursor: "pointer",
+                      width: "100%",
+                    }}
+                  >
+                    {message}
+                  </div>,
+                  {
+                    id: toastId,
+                    duration: 30_000,
+                  },
                 );
 
                 options?.onExtractionFailed?.();
@@ -109,51 +125,39 @@ export function useRealtimeTest(
             },
           )
           .subscribe((status, err) => {
-            console.log("[realtime] channel status:", status);
-
             if (err) {
               console.error("[realtime] channel error:", err);
             }
 
             if (status === "SUBSCRIBED") {
-              console.log("[realtime] subscribed successfully");
               subscribedRef.current = true;
+              console.log("[realtime] subscribed");
             }
 
             if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-              console.error("[realtime] channel failed:", status);
               subscribedRef.current = false;
+              console.error("[realtime] subscription failed");
             }
           });
 
         channelRef.current = channel;
-        console.log("[realtime] channel reference stored");
       } catch (err) {
         console.error("[realtime] init failed", err);
         subscribedRef.current = false;
-      } finally {
-        console.groupEnd();
       }
     }
 
     init();
 
     return () => {
-      console.group("[realtime] cleanup");
-      cancelled = true;
-
       subscribedRef.current = false;
 
       if (supabaseRef.current && channelRef.current) {
-        console.log("[realtime] removing channel");
         supabaseRef.current.removeChannel(channelRef.current);
-      } else {
-        console.log("[realtime] no channel to remove");
       }
 
       channelRef.current = null;
       supabaseRef.current = null;
-      console.groupEnd();
     };
-  }, [enabled, options, session?.user?.id]);
+  }, [enabled, options, session?.user?.id, router]);
 }

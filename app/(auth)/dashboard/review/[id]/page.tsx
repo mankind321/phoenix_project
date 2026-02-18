@@ -29,6 +29,15 @@ import {
   Download,
 } from "lucide-react";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
 interface PropertyData {
   property: any;
   leases: {
@@ -59,6 +68,9 @@ export default function PropertyViewPage({
   const [processing, setProcessing] = useState(false);
 
   const [downloadingBrochure, setDownloadingBrochure] = useState(false);
+
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
 
   useEffect(() => {
     if (!propertyId) return;
@@ -369,8 +381,8 @@ export default function PropertyViewPage({
         <div className="flex gap-3">
           <Button
             disabled={processing}
-            onClick={handleApprove}
-            className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 disabled:opacity-50"
+            onClick={() => setApproveOpen(true)}
+            className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
           >
             {processing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -382,8 +394,8 @@ export default function PropertyViewPage({
 
           <Button
             disabled={processing}
-            onClick={handleReject}
-            className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2 disabled:opacity-50"
+            onClick={() => setRejectOpen(true)}
+            className="bg-red-600 hover:bg-red-700 text-white flex items-center gap-2"
           >
             {processing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -394,6 +406,73 @@ export default function PropertyViewPage({
           </Button>
         </div>
       </div>
+
+      <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Property</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to approve this property?
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={processing}
+              onClick={() => setApproveOpen(false)}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              disabled={processing}
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleApprove}
+            >
+              {processing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Confirm Approve"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Property</DialogTitle>
+            <DialogDescription>
+              This will permanently delete the property. This action cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={processing}
+              onClick={() => setRejectOpen(false)}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              disabled={processing}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleReject}
+            >
+              {processing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Confirm Reject"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
