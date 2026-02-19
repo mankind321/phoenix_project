@@ -124,6 +124,18 @@ export default function DocumentListTab() {
     }
   }, [storageKey, userId]);
 
+  useEffect(() => {
+    const handler = () => {
+      loadDocuments();
+    };
+
+    window.addEventListener("document-list-updated", handler);
+
+    return () => {
+      window.removeEventListener("document-list-updated", handler);
+    };
+  }, [loadDocuments]);
+
   const saveRecentSearch = (value: string) => {
     if (!value || !userId) return;
 
@@ -176,8 +188,11 @@ export default function DocumentListTab() {
 
         toast.success("Document deleted successfully");
 
-        // reload list
+        // reload own list
         loadDocuments();
+
+        // notify other components (optional future use)
+        window.dispatchEvent(new Event("document-list-updated"));
       } catch (err: any) {
         toast.error(err.message || "Failed to delete document");
       }
