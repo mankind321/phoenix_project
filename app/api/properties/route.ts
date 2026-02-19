@@ -497,7 +497,9 @@ export async function GET(req: Request) {
         {
           p_lat: geo?.lat ?? null,
           p_lng: geo?.lng ?? null,
-          p_radius_m: geo ? (params.radius_m ?? 1000000) : null,
+          p_radius_m: geo
+            ? Math.round(Number(params.radius_m ?? 1000000))
+            : null,
           p_type: params.property_type,
           p_min_price: params.min_price,
           p_max_price: params.max_price,
