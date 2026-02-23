@@ -19,11 +19,14 @@ export async function POST() {
 
     const now = Math.floor(Date.now() / 1000);
 
+    // ✅ REQUIRED FOR SUPABASE REALTIME RLS
     const payload = {
       aud: "authenticated",
       role: "authenticated",
-      sub: session.user.id,            // ✅ MUST match document_registry.user_id
-      exp: now + 60 * 60,               // ✅ 1 hour expiry
+      sub: session.user.id,                     // MUST match document_registry.user_id
+      email: session.user.email ?? "rt@local",  // REQUIRED fallback
+      iss: "supabase",                          // ⭐ REQUIRED FOR auth.uid()
+      exp: now + 60 * 60,
       iat: now,
     };
 
@@ -37,6 +40,7 @@ export async function POST() {
       access_token: token,
       expires_in: 3600,
     });
+
   } catch (err: any) {
     console.error("❌ realtime-token:", err);
     return NextResponse.json(
