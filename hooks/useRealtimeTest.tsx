@@ -58,7 +58,7 @@ export function useRealtimeTest(
             onClick={() => toast.dismiss(toastId)}
             style={{ cursor: "pointer", width: "100%" }}
           >
-            <div>Duplicate tenant information detected. To maintain data integrity, the following record(s) will not be included in the saved dataset:</div>
+            <div>Duplicate tenant information detected. The following record(s) will not be saved:</div>
 
             <ul style={{ marginTop: 6, paddingLeft: 18 }}>
               {tenantList.map((t: string, idx: number) => (
