@@ -16,11 +16,16 @@ import {
   Globe,
   Send,
   FileText,
+  Edit,
+  CircleX,
+  ArrowLeft,
 } from "lucide-react";
 
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+
+import { Loader2 } from "lucide-react";
 
 //
 // =============================================
@@ -115,6 +120,7 @@ export default function ContactFormPage() {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(!isEditMode);
   const [error, setError] = useState<string | null>(null);
 
   //
@@ -328,15 +334,21 @@ export default function ContactFormPage() {
   return (
     <div className="w-11/12 mx-auto mt-6 space-y-6">
       <h2 className="text-2xl font-semibold text-center">
-        {isEditMode ? "Edit Contact Information" : "Add New Contact Information"}
+        {!isEditMode
+          ? "Add New Contact Information"
+          : isEditing
+            ? "Update Contact Information"
+            : "View Contact Information"}
       </h2>
-
       {loading ? (
         <p>Loading...</p>
       ) : error ? (
         <p className="text-red-500">{error}</p>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className={`space-y-6 ${submitting ? "pointer-events-none opacity-70" : ""}`}
+        >
           {/* BROKER + LISTING */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -349,6 +361,7 @@ export default function ContactFormPage() {
                 value={form.broker_name}
                 onChange={handleChange}
                 required
+                disabled={!isEditing}
                 placeholder="Broker Name"
               />
             </div>
@@ -363,6 +376,7 @@ export default function ContactFormPage() {
                 value={form.listing_company}
                 onChange={handleChange}
                 required
+                disabled={!isEditing}
                 placeholder="Listing Company"
               />
             </div>
@@ -380,6 +394,7 @@ export default function ContactFormPage() {
                 value={form.phone}
                 onChange={handleChange}
                 required
+                disabled={!isEditing}
                 placeholder="Phone"
               />
             </div>
@@ -395,6 +410,7 @@ export default function ContactFormPage() {
                 value={form.email}
                 onChange={handleChange}
                 required
+                disabled={!isEditing}
                 placeholder="Email Address"
               />
             </div>
@@ -408,6 +424,7 @@ export default function ContactFormPage() {
                 name="website"
                 value={form.website ?? ""}
                 onChange={handleChange}
+                disabled={!isEditing}
                 placeholder="https://example.com"
               />
             </div>
@@ -423,6 +440,7 @@ export default function ContactFormPage() {
             <div className="flex gap-2 items-center">
               <SearchableSelect
                 value={selectedProperty}
+                disabled={!isEditing}
                 onChange={(v) => {
                   setSelectedProperty(v);
                   // Clear lease when property changes
@@ -460,6 +478,7 @@ export default function ContactFormPage() {
             <div className="flex gap-2 items-center">
               <SearchableSelect
                 value={selectedLease}
+                disabled={!isEditing}
                 onChange={(v) => {
                   setSelectedLease(v);
 
@@ -505,6 +524,7 @@ export default function ContactFormPage() {
               onChange={(e) => setRelationComment(e.target.value)}
               rows={3}
               className="w-full rounded-md border border-gray-300 bg-white px-3 py-3 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 resize-none"
+              disabled={!isEditing}
               placeholder="Additional notes..."
             />
           </div>
@@ -518,29 +538,80 @@ export default function ContactFormPage() {
               onChange={handleChange}
               rows={4}
               className="w-full rounded-md border border-gray-300 bg-white px-3 py-3 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 resize-none"
+              disabled={!isEditing}
               placeholder="Optional notes..."
             />
           </div>
 
           {/* BUTTONS */}
-          <div className="flex justify-end gap-3">
-            <Button
-              type="submit"
-              disabled={submitting}
-              className="bg-blue-500 hover:bg-blue-700 text-white hover:text-white"
-            >
-              <Send className="w-4 h-4 mr-2" />
-              {isEditMode ? "Update Contact" : "Save Contact"}
-            </Button>
-
+          <div className="flex justify-between items-center">
+            {/* LEFT SIDE */}
             <Button
               type="button"
               variant="outline"
-              className="bg-red-500 hover:bg-red-700 text-white hover:text-white"
-              onClick={() => router.back()}
+              onClick={() => {
+                if (window.history.length > 1) {
+                  router.back();
+                } else {
+                  router.push("/dashboard/contact");
+                }
+              }}
+              className="flex items-center gap-2"
             >
-              Cancel
+              <ArrowLeft className="w-4 h-4" />
+              Back
             </Button>
+
+            {/* RIGHT SIDE */}
+            <div className="flex gap-3">
+              {/* VIEW MODE */}
+              {isEditMode && !isEditing && (
+                <Button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="bg-blue-500 hover:bg-blue-700 text-white"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Update
+                </Button>
+              )}
+
+              {/* EDIT / CREATE MODE */}
+              {(isEditing || !isEditMode) && (
+                <>
+                  <Button
+                    type="submit"
+                    disabled={submitting}
+                    className="bg-blue-500 hover:bg-blue-700 text-white min-w-[150px] flex items-center justify-center"
+                  >
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4 mr-2" />
+                        {isEditMode ? "Save Changes" : "Save Contact"}
+                      </>
+                    )}
+                  </Button>
+
+                  {isEditMode && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={submitting}
+                      onClick={() => setIsEditing(false)}
+                      className="bg-red-500 hover:bg-red-700 text-white hover:text-white"
+                    >
+                      <CircleX className="w-4 h-4 mr-2" />
+                      Cancel
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </form>
       )}

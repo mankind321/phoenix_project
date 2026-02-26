@@ -200,7 +200,7 @@ export function useRealtimeTest(
             }
 
             if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-              console.error("[realtime] subscription failed");
+              console.warn("[realtime] subscription failed");
             }
           });
 

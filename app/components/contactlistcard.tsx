@@ -36,6 +36,7 @@ import {
   Contact,
   Contact2,
   SearchIcon,
+  Eye,
 } from "lucide-react";
 
 import {
@@ -269,7 +270,7 @@ export default function ContactTable() {
                   router.push(`/dashboard/contact/edit?id=${item.contact_id}`)
                 }
               >
-                <Edit size={16} /> Update
+                <Eye size={16} /> View
               </Button>
             </div>
           );

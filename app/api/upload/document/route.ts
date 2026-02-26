@@ -7,6 +7,7 @@ import { logAuditTrail } from "@/lib/auditLogger";
 
 const DISPATCHER_SIGNED_URL =
   "https://upload-dispatcher-283806001440.us-west2.run.app/preupload/signed-url";
+const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB
 
 export async function POST(req: Request) {
   try {
@@ -38,7 +39,20 @@ export async function POST(req: Request) {
     const contentType = body.content_type || "application/octet-stream";
 
     const documentType = body.document_type;
-    const fileSize = body.file_size;
+    const fileSize = Number(body.file_size) || 0;
+
+    // 🚫 HARD LIMIT CHECK (1GB)
+    if (fileSize > MAX_FILE_SIZE) {
+      const sizeInGB = (fileSize / (1024 * 1024 * 1024)).toFixed(2);
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: `Upload blocked. File size is ${sizeInGB} GB. Maximum allowed size per document is 1 GB.`,
+        },
+        { status: 413 }, // Payload Too Large
+      );
+    }
 
     if (!fileNameRaw || !documentType) {
       return NextResponse.json(
@@ -53,7 +67,7 @@ export async function POST(req: Request) {
     // ----------------------------------------------
     // 3. Normalize filename
     // ----------------------------------------------
-    const normalizedFileName = fileNameRaw.trim()
+    const normalizedFileName = fileNameRaw.trim();
 
     // ----------------------------------------------
     // 4. Generate upload path

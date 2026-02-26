@@ -47,6 +47,7 @@ export default function DocumentUploadSection() {
 
   const reachedLimit = files.length >= 1000;
   const maxFiles = 1000;
+  const MAX_FILE_SIZE = 1024 * 1024 * 1024; // 1GB
 
   const allowedMimeTypes = [
     "application/pdf",
@@ -142,10 +143,23 @@ export default function DocumentUploadSection() {
     const validFiles: File[] = [];
 
     selected.forEach((file) => {
+      // ❌ MIME VALIDATION
       if (!allowedMimeTypes.includes(file.type)) {
         toast.warning("File type not allowed", {
           description: `${file.name} is not supported. Allowed types: ${getAllowedFileTypesLabel()}`,
         });
+        return;
+      }
+
+      // ❌ SIZE VALIDATION (1GB)
+      if (file.size > MAX_FILE_SIZE) {
+        const sizeInGB = (file.size / (1024 * 1024 * 1024)).toFixed(2);
+
+        toast.error("Upload blocked", {
+          description: `${file.name} is ${sizeInGB} GB. Maximum allowed size per document is 1 GB.`,
+          duration: 8000,
+        });
+
         return;
       }
 
@@ -444,7 +458,7 @@ export default function DocumentUploadSection() {
               <h3 className="text-base font-medium">Upload Documents</h3>
 
               <p className="text-sm text-gray-500">
-                Drag & drop files or click to browse
+                Drag & drop files or click to browse (Max 1GB per document)
               </p>
 
               <input

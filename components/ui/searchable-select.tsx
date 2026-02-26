@@ -30,6 +30,7 @@ interface Props {
   options: Option[];
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export function SearchableSelect({
@@ -38,18 +39,24 @@ export function SearchableSelect({
   options,
   placeholder,
   className,
+  disabled = false,
 }: Props) {
   const [open, setOpen] = React.useState(false);
   const triggerRef = React.useRef<HTMLButtonElement>(null);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={disabled ? false : open}
+      onOpenChange={disabled ? undefined : setOpen}
+    >
       <PopoverTrigger asChild>
         <button
           ref={triggerRef}
+          disabled={disabled}
           className={cn(
             "w-full flex justify-between items-center rounded-md border bg-white px-3 py-2 text-sm",
-            className
+            disabled && "opacity-50 cursor-not-allowed",
+            className,
           )}
         >
           <span className="truncate">
@@ -66,9 +73,7 @@ export function SearchableSelect({
         side="bottom"
         className="p-0 mt-1 rounded-md border bg-white shadow-lg"
         style={{
-          width: triggerRef.current
-            ? triggerRef.current.offsetWidth
-            : "auto",
+          width: triggerRef.current ? triggerRef.current.offsetWidth : "auto",
         }}
       >
         <Command shouldFilter>
@@ -89,6 +94,7 @@ export function SearchableSelect({
                 value={opt.label}
                 className="cursor-pointer"
                 onSelect={() => {
+                  if (disabled) return;
                   onChange(opt.value);
                   setOpen(false);
                 }}
@@ -96,7 +102,7 @@ export function SearchableSelect({
                 <Check
                   className={cn(
                     "mr-2 h-4 w-4",
-                    opt.value === value ? "opacity-100" : "opacity-0"
+                    opt.value === value ? "opacity-100" : "opacity-0",
                   )}
                 />
                 {opt.label}
