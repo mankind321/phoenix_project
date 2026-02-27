@@ -279,6 +279,13 @@ export default function PropertyCardTable() {
     setShowRecentDropdown(false);
   };
 
+  const clearSearch = () => {
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
+    setShowRecentDropdown(false);
+  };
+
   const removeRecentSearch = (value: string) => {
     const updated = recentSearches.filter((v) => v !== value);
     setRecentSearches(updated);
@@ -442,13 +449,25 @@ export default function PropertyCardTable() {
             )}
           </div>
 
-          <Button
-            onClick={triggerSearch}
-            className="bg-blue-700 hover:bg-blue-500 text-white px-6 mt-2"
-          >
-            <Search />
-            Search
-          </Button>
+          <div className="flex items-center gap-2 mt-2">
+            <Button
+              onClick={triggerSearch}
+              className="bg-blue-700 hover:bg-blue-500 text-white px-6 flex items-center gap-2"
+            >
+              <Search size={16} />
+              Search
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={clearSearch}
+              disabled={!searchInput && !search}
+              className="flex items-center gap-2 bg-red-500 text-white hover:bg-red-700 hover:text-white"
+            >
+              <X size={16} />
+              Clear
+            </Button>
+          </div>
         </div>
       </div>
 

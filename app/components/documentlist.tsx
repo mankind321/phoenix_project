@@ -175,6 +175,13 @@ export default function DocumentListTab() {
     setShowRecentDropdown(false);
   };
 
+  const clearSearch = () => {
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
+    setShowRecentDropdown(false);
+  };
+
   const removeRecentSearch = (value: string) => {
     const updated = recentSearches.filter((v) => v !== value);
     setRecentSearches(updated);
@@ -452,10 +459,11 @@ export default function DocumentListTab() {
   return (
     <>
       {/* Search + Filters */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-4">
+        {/* LEFT SECTION: SEARCH */}
         <div
           ref={searchWrapperRef}
-          className="relative flex items-center gap-2"
+          className="flex flex-wrap items-end gap-2 relative"
         >
           <div className="relative">
             <Input
@@ -463,11 +471,9 @@ export default function DocumentListTab() {
               value={searchInput}
               onChange={(e) => {
                 const value = e.target.value;
-
                 setSearchInput(value);
                 setShowRecentDropdown(true);
 
-                // reload all when cleared
                 if (!value.trim()) {
                   setSearch("");
                   setPage(1);
@@ -477,10 +483,9 @@ export default function DocumentListTab() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") applySearch();
               }}
-              className="w-[500px]"
+              className="w-[300px] md:w-[400px] lg:w-[500px]"
             />
 
-            {/* Recent search dropdown */}
             {showRecentDropdown && recentSearches.length > 0 && (
               <div className="absolute top-full left-0 w-full bg-white border rounded-md shadow-md z-50 mt-1 max-h-60 overflow-auto">
                 {recentSearches
@@ -521,65 +526,85 @@ export default function DocumentListTab() {
 
           <Button
             onClick={applySearch}
-            className="bg-blue-700 text-white hover:bg-blue-500 mt-2 flex items-center gap-2"
+            className="bg-blue-700 text-white hover:bg-blue-500 flex items-center gap-2"
           >
             <Search className="w-4 h-4" />
             Search
           </Button>
-        </div>
-
-        <div className="flex gap-3 mt-2">
-          <Input
-            type="date"
-            value={draftDateFrom}
-            onChange={(e) => setDraftDateFrom(e.target.value)}
-          />
-          <Input
-            type="date"
-            value={draftDateTo}
-            onChange={(e) => setDraftDateTo(e.target.value)}
-          />
 
           <Button
-            className="bg-blue-700 text-white mt-2"
-            onClick={() => {
-              setDateFrom(draftDateFrom);
-              setDateTo(draftDateTo);
-              setPage(1);
-            }}
+            variant="outline"
+            onClick={clearSearch}
+            disabled={!searchInput && !search}
+            className="flex items-center gap-2"
           >
-            Apply
-          </Button>
-
-          <Button
-            className="bg-red-700 text-white mt-2"
-            onClick={() => {
-              setDraftDateFrom("");
-              setDraftDateTo("");
-              setDateFrom("");
-              setDateTo("");
-              setPage(1);
-            }}
-          >
+            <X className="w-4 h-4" />
             Clear
           </Button>
+        </div>
 
-          <Can role={["Admin", "Manager"]}>
+        {/* RIGHT SECTION: DATE + DELETE */}
+        <div className="flex flex-col gap-2 xl:flex-row xl:items-end xl:gap-2">
+          {/* DATE ROW (always one line) */}
+          <div className="flex flex-nowrap items-end gap-2">
+            <Input
+              type="date"
+              value={draftDateFrom}
+              onChange={(e) => setDraftDateFrom(e.target.value)}
+              className="min-w-[150px]"
+            />
+
+            <Input
+              type="date"
+              value={draftDateTo}
+              onChange={(e) => setDraftDateTo(e.target.value)}
+              className="min-w-[150px]"
+            />
+          </div>
+
+          {/* BUTTON ROW */}
+          <div className="flex flex-wrap gap-2">
             <Button
+              className="bg-blue-700 text-white whitespace-nowrap"
               onClick={() => {
-                if (!Object.keys(rowSelection).length) {
-                  toast.error("Please select at least one document.");
-                  return;
-                }
-                setConfirmOpen(true);
+                setDateFrom(draftDateFrom);
+                setDateTo(draftDateTo);
+                setPage(1);
               }}
-              disabled={deleting}
-              className="mb-3 bg-red-700 hover:bg-red-500 text-white mt-2"
             >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Delete Selected ({table.getSelectedRowModel().rows.length})
+              Apply Date
             </Button>
-          </Can>
+
+            <Button
+              className="bg-red-700 text-white whitespace-nowrap"
+              onClick={() => {
+                setDraftDateFrom("");
+                setDraftDateTo("");
+                setDateFrom("");
+                setDateTo("");
+                setPage(1);
+              }}
+            >
+              Clear Date
+            </Button>
+
+            <Can role={["Admin", "Manager"]}>
+              <Button
+                onClick={() => {
+                  if (!Object.keys(rowSelection).length) {
+                    toast.error("Please select at least one document.");
+                    return;
+                  }
+                  setConfirmOpen(true);
+                }}
+                disabled={deleting}
+                className="bg-red-700 hover:bg-red-500 text-white whitespace-nowrap"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Selected ({table.getSelectedRowModel().rows.length})
+              </Button>
+            </Can>
+          </div>
         </div>
       </div>
 

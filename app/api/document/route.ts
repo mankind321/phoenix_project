@@ -96,25 +96,33 @@ export async function GET(req: Request) {
     }
 
     if (propertyName.trim()) {
-      query = query.ilike("property_name", `%${propertyName}%`);
+      query = query.ilike("property_name", `%${propertyName.trim()}%`);
     }
 
     if (leaseTenant.trim()) {
-      query = query.ilike("lease_tenant", `%${leaseTenant}%`);
+      query = query.ilike("lease_tenant", `%${leaseTenant.trim()}%`);
     }
 
     if (search) {
-      const term = `%${search}%`;
-      query = query.or(
-        [
-          `file_url.ilike.${term}`,
-          `user_name.ilike.${term}`,
-          `doc_type.ilike.${term}`,
-          `comments.ilike.${term}`,
-          `property_name.ilike.${term}`,
-          `lease_tenant.ilike.${term}`,
-        ].join(","),
-      );
+      const words = search
+        .split(" ")
+        .map((w) => w.trim())
+        .filter(Boolean);
+
+      for (const word of words) {
+        const term = `%${word}%`;
+
+        query = query.or(
+          `
+      file_url.ilike.${term},
+      user_name.ilike.${term},
+      doc_type.ilike.${term},
+      comments.ilike.${term},
+      property_name.ilike.${term},
+      lease_tenant.ilike.${term}
+      `.replace(/\s+/g, ""),
+        );
+      }
     }
 
     // ----------------------------------

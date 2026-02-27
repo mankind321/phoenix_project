@@ -197,6 +197,13 @@ export default function ErrorMonitoringTable({
     setShowRecentDropdown(false);
   };
 
+  const clearSearch = () => {
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
+    setShowRecentDropdown(false);
+  };
+
   const removeRecentSearch = (value: string) => {
     const updated = recentSearches.filter((v) => v !== value);
     setRecentSearches(updated);
@@ -372,83 +379,97 @@ export default function ErrorMonitoringTable({
 
   return (
     <div className="space-y-6">
-      <div ref={searchWrapperRef} className="flex items-center gap-2 relative">
-        <div className="relative">
-          <Input
-            placeholder="Search file name..."
-            value={searchInput}
-            onChange={(e) => {
-              const value = e.target.value;
+      <div className="flex items-center justify-between mb-4">
+        {/* LEFT SIDE: SEARCH + CLEAR */}
+        <div
+          ref={searchWrapperRef}
+          className="flex items-center gap-2 relative"
+        >
+          <div className="relative">
+            <Input
+              placeholder="Search file name..."
+              value={searchInput}
+              onChange={(e) => {
+                const value = e.target.value;
 
-              setSearchInput(value);
-              setShowRecentDropdown(true);
+                setSearchInput(value);
+                setShowRecentDropdown(true);
 
-              // reload all when cleared
-              if (!value.trim()) {
-                setSearch("");
-                setPage(1);
-              }
-            }}
-            onFocus={() => setShowRecentDropdown(true)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") applySearch();
-            }}
-            className="w-[600px]"
-          />
+                if (!value.trim()) {
+                  setSearch("");
+                  setPage(1);
+                }
+              }}
+              onFocus={() => setShowRecentDropdown(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") applySearch();
+              }}
+              className="w-[600px]"
+            />
 
-          {/* Recent search dropdown */}
-
-          {showRecentDropdown && recentSearches.length > 0 && (
-            <div className="absolute top-full left-0 w-full bg-white border rounded-md shadow-md z-50 mt-1 max-h-60 overflow-auto">
-              {recentSearches
-                .filter((item) =>
-                  item.toLowerCase().includes(searchInput.toLowerCase()),
-                )
-                .map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer group"
-                  >
+            {/* Recent dropdown */}
+            {showRecentDropdown && recentSearches.length > 0 && (
+              <div className="absolute top-full left-0 w-full bg-white border rounded-md shadow-md z-50 mt-1 max-h-60 overflow-auto">
+                {recentSearches
+                  .filter((item) =>
+                    item.toLowerCase().includes(searchInput.toLowerCase()),
+                  )
+                  .map((item, index) => (
                     <div
-                      className="flex items-center gap-2 flex-1"
-                      onClick={() => {
-                        setSearchInput(item);
-                        saveRecentSearch(item);
-
-                        setSearch(item);
-                        setPage(1);
-
-                        setShowRecentDropdown(false);
-                      }}
+                      key={index}
+                      className="flex items-center justify-between px-3 py-2 hover:bg-gray-100 cursor-pointer group"
                     >
-                      <Clock className="w-4 h-4 text-gray-400" />
-                      {item}
-                    </div>
+                      <div
+                        className="flex items-center gap-2 flex-1"
+                        onClick={() => {
+                          setSearchInput(item);
+                          saveRecentSearch(item);
+                          setSearch(item);
+                          setPage(1);
+                          setShowRecentDropdown(false);
+                        }}
+                      >
+                        <Clock className="w-4 h-4 text-gray-400" />
+                        {item}
+                      </div>
 
-                    <X
-                      className="w-4 h-4 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeRecentSearch(item);
-                      }}
-                    />
-                  </div>
-                ))}
-            </div>
-          )}
+                      <X
+                        className="w-4 h-4 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeRecentSearch(item);
+                        }}
+                      />
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+          
+          {/* Search Button */}
+          <Button
+            onClick={applySearch}
+            className="bg-blue-700 text-white hover:bg-blue-500 flex items-center gap-2 mt-2"
+          >
+            <Search className="w-4 h-4" />
+            Search
+          </Button>
+
+          {/* Clear Button */}
+          <Button
+            variant="outline"
+            onClick={clearSearch}
+            disabled={!searchInput && !search}
+            className="flex items-center gap-2 bg-red-500 text-white hover:bg-red-700 hover:text-white mt-2"
+          >
+            <X className="w-4 h-4" />
+            Clear
+          </Button>
         </div>
 
-        <Button
-          onClick={applySearch}
-          className="bg-blue-700 text-white hover:bg-blue-500 mt-2 flex items-center gap-2"
-        >
-          <Search className="w-4 h-4" />
-          Search
-        </Button>
-
+        {/* RIGHT SIDE: DELETE */}
         <Button
           variant="destructive"
-          className="mt-2"
           disabled={bulkDeleting}
           onClick={() => {
             if (!Object.keys(rowSelection).length) {
@@ -457,6 +478,7 @@ export default function ErrorMonitoringTable({
             }
             setBulkDeleteOpen(true);
           }}
+          className="mt-2"
         >
           <Trash2 className="w-4 h-4 mr-2" />
           {bulkDeleting

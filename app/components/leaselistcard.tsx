@@ -161,6 +161,13 @@ export default function LeaseListPage() {
     setShowRecentDropdown(false);
   };
 
+  const clearSearch = () => {
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
+    setShowRecentDropdown(false);
+  };
+
   const saveRecentSearch = (value: string) => {
     if (!value || !userId) return;
 
@@ -260,13 +267,25 @@ export default function LeaseListPage() {
             )}
           </div>
 
-          <Button
-            onClick={applySearch}
-            className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 mt-2"
-          >
-            <SearchIcon className="w-4 h-4" />
-            Search
-          </Button>
+          <div className="flex items-center gap-2 mt-2">
+            <Button
+              onClick={applySearch}
+              className="h-10 px-4 bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+            >
+              <SearchIcon className="w-4 h-4" />
+              Search
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={clearSearch}
+              disabled={!searchInput && !search}
+              className="h-10 flex items-center gap-2 bg-red-500 text-white hover:bg-red-700 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+              Clear
+            </Button>
+          </div>
         </div>
       </div>
 

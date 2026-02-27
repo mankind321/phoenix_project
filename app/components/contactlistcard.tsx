@@ -375,6 +375,13 @@ export default function ContactTable() {
     setShowRecentDropdown(false);
   };
 
+  const clearSearch = () => {
+    setSearchInput("");
+    setGlobalFilter("");
+    setPage(1);
+    setShowRecentDropdown(false);
+  };
+
   const removeRecentSearch = (value: string) => {
     const updated = recentSearches.filter((v) => v !== value);
     setRecentSearches(updated);
@@ -486,14 +493,26 @@ export default function ContactTable() {
             )}
           </div>
 
-          {/* Search button */}
-          <Button
-            onClick={applySearch}
-            className="bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2 mt-2"
-          >
-            <SearchIcon className="w-4 h-4" />
-            Search
-          </Button>
+          {/* Search + Clear buttons */}
+          <div className="flex items-center gap-2 mt-2">
+            <Button
+              onClick={applySearch}
+              className="bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
+            >
+              <SearchIcon className="w-4 h-4" />
+              Search
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={clearSearch}
+              disabled={!searchInput && !globalFilter}
+              className="flex items-center gap-2 bg-red-500 text-white hover:bg-red-700 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+              Clear
+            </Button>
+          </div>
 
           {/* Add Contact button */}
           <Button

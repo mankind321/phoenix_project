@@ -10,6 +10,8 @@ import {
   Download,
   Loader2,
   Cog,
+  Search,
+  X,
 } from "lucide-react";
 import {
   Select,
@@ -72,8 +74,56 @@ export default function AuditTrailDashboard() {
       fullName: string;
     }[]
   >([]);
+  // Input states (UI only)
+  const [searchInput, setSearchInput] = useState("");
+  const [actionInput, setActionInput] = useState("all");
+  const [userInput, setUserInput] = useState("all");
+  const [fromDateInput, setFromDateInput] = useState<string | null>(null);
+  const [toDateInput, setToDateInput] = useState<string | null>(null);
+  const defaultFilters = {
+    search: "",
+    action: "all",
+    user: "all",
+    fromDate: null,
+    toDate: null,
+    preset: "custom",
+  };
+
+  const isFilterDirty =
+    searchInput !== defaultFilters.search ||
+    actionInput !== defaultFilters.action ||
+    userInput !== defaultFilters.user ||
+    fromDateInput !== defaultFilters.fromDate ||
+    toDateInput !== defaultFilters.toDate ||
+    datePreset !== defaultFilters.preset;
 
   const { data: session } = useSession();
+
+  const applyFilters = () => {
+    setSearch(searchInput.trim());
+    setActionFilter(actionInput);
+    setUserFilter(userInput);
+    setFromDate(fromDateInput);
+    setToDate(toDateInput);
+    setPage(1);
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setActionFilter("all");
+    setUserFilter("all");
+    setFromDate(null);
+    setToDate(null);
+
+    setSearchInput("");
+    setActionInput("all");
+    setUserInput("all");
+    setFromDateInput(null);
+    setToDateInput(null);
+
+    setDatePreset("custom");
+    setPage(1);
+  };
 
   async function loadData() {
     const res = await fetch(`/api/audit-trail?page=1`, {
@@ -194,8 +244,8 @@ export default function AuditTrailDashboard() {
             <p className="text-sm font-medium text-gray-600 mb-1">Search</p>
             <Input
               placeholder="Search events..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
 
@@ -203,7 +253,7 @@ export default function AuditTrailDashboard() {
           <div>
             <p className="text-sm font-medium text-gray-600 mb-1">Action</p>
             <div className="mt-3">
-              <Select value={actionFilter} onValueChange={setActionFilter}>
+              <Select value={actionInput} onValueChange={setActionInput}>
                 <SelectTrigger>
                   <SelectValue placeholder="All Actions" />
                 </SelectTrigger>
@@ -227,7 +277,7 @@ export default function AuditTrailDashboard() {
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">User</p>
               <div className="mt-3">
-                <Select value={userFilter} onValueChange={setUserFilter}>
+                <Select value={userInput} onValueChange={setUserInput}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Users" />
                   </SelectTrigger>
@@ -288,9 +338,9 @@ export default function AuditTrailDashboard() {
                 <p className="text-sm font-medium text-gray-600 mb-1">From</p>
                 <Input
                   type="date"
-                  value={fromDate ?? ""}
+                  value={fromDateInput ?? ""}
                   onChange={(e) => {
-                    setFromDate(e.target.value);
+                    setFromDateInput(e.target.value);
                     setPage(1);
                   }}
                 />
@@ -300,15 +350,33 @@ export default function AuditTrailDashboard() {
                 <p className="text-sm font-medium text-gray-600 mb-1">To</p>
                 <Input
                   type="date"
-                  value={toDate ?? ""}
+                  value={toDateInput ?? ""}
                   onChange={(e) => {
-                    setToDate(e.target.value);
+                    setToDateInput(e.target.value);
                     setPage(1);
                   }}
                 />
               </div>
             </>
           )}
+        </div>
+        <div className="flex justify-end gap-3 mt-4">
+          <Button
+            onClick={applyFilters}
+            className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+          >
+            <Search />
+            Search
+          </Button>
+          <Button
+            variant="outline"
+            onClick={clearFilters}
+            disabled={!isFilterDirty}
+            className="flex items-center gap-2 bg-red-500 text-white hover:bg-red-700 hover:text-white"
+          >
+            <X />
+            Clear
+          </Button>
         </div>
       </div>
 
