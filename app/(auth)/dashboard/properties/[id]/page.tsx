@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -83,47 +84,60 @@ export default function PropertyViewPage({
   function normalizeGsUrl(url: string) {
     if (!url) return "";
 
+    const bucket = process.env.NEXT_PUBLIC_GCP_BUCKET;
+
     // gs://bucket/path
     if (url.startsWith("gs://")) {
-      return url.replace(`gs://${process.env.NEXT_PUBLIC_GCP_BUCKET}/`, "");
+      return url.replace(`gs://${bucket}/`, "");
     }
 
     // https://storage.googleapis.com/bucket/path
     if (url.includes("storage.googleapis.com")) {
-      return url.split(`/${process.env.NEXT_PUBLIC_GCP_BUCKET}/`)[1];
+      const parts = url.split(`/${bucket}/`);
+      return parts.length > 1 ? parts[1] : "";
     }
 
-    // already normalized
     return url;
   }
 
   async function handleDownloadBrochure() {
-    if (!documentFiles?.file_url) {
-      toast.error("No brochure available.");
+    const fileUrl = data?.documentFiles?.file_url;
+
+    if (!fileUrl) {
+      toast.error("Document not found.");
       return;
     }
 
     try {
       setDownloadingBrochure(true);
 
-      const fileUrl = documentFiles.file_url;
+      let downloadUrl = "";
 
-      console.log("fileUrl:", fileUrl);
-
-      // CASE 1: Signed URL → use directly
+      // CASE 1: Direct signed URL
       if (fileUrl.startsWith("https://storage.googleapis.com")) {
-        window.open(fileUrl, "_blank");
-        toast.success("Download started.");
+        downloadUrl = fileUrl;
+      } else {
+        // CASE 2: gs:// or relative path
+        const clean = normalizeGsUrl(fileUrl);
+
+        if (!clean) {
+          toast.error("Invalid file path.");
+          return;
+        }
+
+        downloadUrl = `/api/gcp/download?path=${encodeURIComponent(clean)}`;
+      }
+
+      // 🔎 Validate first (prevents XML error page)
+      const headCheck = await fetch(downloadUrl, { method: "HEAD" });
+
+      if (!headCheck.ok) {
+        toast.error("Document not found.");
         return;
       }
 
-      // CASE 2: gs:// URL → use API
-      const clean = normalizeGsUrl(fileUrl);
-
-      const downloadUrl = `/api/gcp/download?path=${encodeURIComponent(clean)}`;
-
+      // Only open if exists
       window.open(downloadUrl, "_blank");
-
       toast.success("Download started.");
     } catch (error) {
       console.error(error);
@@ -145,7 +159,10 @@ export default function PropertyViewPage({
       </p>
     );
 
-  const { property, leases, documentFiles, contacts } = data;
+  const property = data.property;
+  const leases = data.leases;
+  const documentFiles = data.documentFiles;
+  const contacts = data.contacts;
 
   return (
     <div className="w-11/12 mx-auto mt-10 space-y-10">
@@ -165,10 +182,10 @@ export default function PropertyViewPage({
           <InfoItem label="Landlord" value={property.landlord} />
           <InfoItem label="Status" value={property.status} />
           <div>
-            {documentFiles.file_url ? (
+            {data?.documentFiles?.file_url ? (
               <Button
                 onClick={handleDownloadBrochure}
-                disabled={!documentFiles?.file_url || downloadingBrochure}
+                disabled={!data?.documentFiles?.file_url || downloadingBrochure}
                 className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 text-lg disabled:bg-gray-400"
               >
                 <Download className="w-5 h-5" />

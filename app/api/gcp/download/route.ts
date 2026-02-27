@@ -17,13 +17,43 @@ const storage = new Storage({
   },
 });
 
-const bucket = storage.bucket(process.env.GOOGLE_BUCKET_DOCUMENT!);
+const bucketName = process.env.GOOGLE_BUCKET_DOCUMENT!;
+const bucket = storage.bucket(bucketName);
+
+/* ============================================================
+   NORMALIZE FILE PATH SAFELY
+============================================================ */
+function normalizePath(rawPath: string) {
+  if (!rawPath) return "";
+
+  let path = decodeURIComponent(rawPath).trim();
+
+  // Remove gs://bucket/
+  if (path.startsWith("gs://")) {
+    path = path.replace(`gs://${bucketName}/`, "");
+  }
+
+  // Remove https://storage.googleapis.com/bucket/
+  if (path.includes("storage.googleapis.com")) {
+    const parts = path.split(`/${bucketName}/`);
+    path = parts.length > 1 ? parts[1] : "";
+  }
+
+  // Remove accidental bucket duplication
+  if (path.startsWith(bucketName + "/")) {
+    path = path.replace(bucketName + "/", "");
+  }
+
+  // Remove leading slashes
+  path = path.replace(/^\/+/, "");
+
+  return path;
+}
 
 /* ============================================================
    SHARED VALIDATION FUNCTION
 ============================================================ */
 async function validateAndGetFile(req: Request) {
-  // Validate session
   const session = await getServerSession(authOptions);
   const user = session?.user;
 
@@ -36,11 +66,10 @@ async function validateAndGetFile(req: Request) {
     };
   }
 
-  // Get file path
   const { searchParams } = new URL(req.url);
-  const filePath = searchParams.get("path");
+  const rawPath = searchParams.get("path");
 
-  if (!filePath) {
+  if (!rawPath) {
     return {
       error: NextResponse.json(
         { success: false, message: "Missing file path" },
@@ -49,30 +78,32 @@ async function validateAndGetFile(req: Request) {
     };
   }
 
-  // Normalize path
-  const cleanPath = filePath
-    .replace("gs://", "")
-    .replace(process.env.GOOGLE_BUCKET_DOCUMENT + "/", "")
-    .replace(/^\/+/, "");
+  const cleanPath = normalizePath(rawPath);
+
+  if (!cleanPath) {
+    return {
+      error: NextResponse.json(
+        { success: false, message: "Invalid file path" },
+        { status: 400 }
+      ),
+    };
+  }
+
+  console.log("🔎 Normalized GCP path:", cleanPath);
 
   const file = bucket.file(cleanPath);
-
   const [exists] = await file.exists();
 
   if (!exists) {
     return {
       error: NextResponse.json(
-        { success: false, message: "File not found in GCP" },
+        { success: false, message: "Document not found." },
         { status: 404 }
       ),
     };
   }
 
-  return {
-    file,
-    cleanPath,
-    user,
-  };
+  return { file, cleanPath, user };
 }
 
 /* ============================================================
@@ -81,39 +112,27 @@ async function validateAndGetFile(req: Request) {
 export async function HEAD(req: Request) {
   try {
     const result = await validateAndGetFile(req);
-
     if (result.error) return result.error;
 
-    return new NextResponse(null, {
-      status: 200,
-    });
-
-  } catch (error: any) {
+    return new NextResponse(null, { status: 200 });
+  } catch (error) {
     console.error("❌ File HEAD check failed:", error);
-
-    return new NextResponse(null, {
-      status: 500,
-    });
+    return new NextResponse(null, { status: 500 });
   }
 }
 
 /* ============================================================
-   GET METHOD (actual download)
+   GET METHOD (STREAM DOWNLOAD - MEMORY SAFE)
 ============================================================ */
 export async function GET(req: Request) {
   try {
     const result = await validateAndGetFile(req);
-
     if (result.error) return result.error;
 
     const { file, cleanPath, user } = result;
-
-    // Download file
-    const [contents] = await file.download();
-
     const fileName = cleanPath.split("/").pop() ?? "download";
 
-    // Audit log
+    // Audit log (before streaming)
     await logAuditTrail({
       userId: user.id,
       username: user.username,
@@ -125,19 +144,20 @@ export async function GET(req: Request) {
       userAgent: req.headers.get("user-agent") ?? "Unknown",
     });
 
-    return new Response(new Uint8Array(contents), {
+    const stream = file.createReadStream();
+
+    return new Response(stream as any, {
       status: 200,
       headers: {
         "Content-Type": "application/octet-stream",
         "Content-Disposition": `attachment; filename="${fileName}"`,
       },
     });
-
   } catch (error: any) {
     console.error("❌ File download failed:", error);
 
     return NextResponse.json(
-      { success: false, message: error.message },
+      { success: false, message: "Failed to download document." },
       { status: 500 }
     );
   }
