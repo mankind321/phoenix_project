@@ -394,21 +394,30 @@ export default function DocumentListTab() {
         id: "related",
         header: "Property / Tenant",
         cell: ({ row }) => {
-          const doc = row.original;
+          const {
+            doc_type,
+            lease_tenant,
+            property_name,
+            property_id,
+            lease_id,
+          } = row.original;
 
-          const value =
-            !doc.property_id && doc.lease_id
-              ? doc.lease_tenant
-              : doc.property_name || "—";
+          const normalizedType = doc_type?.toLowerCase();
+          const isRentRoll = normalizedType === "rent roll";
+
+          const value = isRentRoll
+            ? (lease_tenant ?? property_name)
+            : !property_id && lease_id
+              ? lease_tenant
+              : property_name;
 
           return (
             <div className="whitespace-normal break-words max-w-[250px]">
-              {value}
+              {value ?? "—"}
             </div>
           );
         },
       },
-
       {
         accessorKey: "uploaded_on",
         header: "Date",
