@@ -223,9 +223,7 @@ export default function DocumentListTab() {
   );**/
 
   const handleBulkDelete = useCallback(async () => {
-    const selectedIds = Object.keys(rowSelection)
-      .map((rowIndex) => documents[Number(rowIndex)]?.document_id)
-      .filter(Boolean);
+    const selectedIds = Object.keys(rowSelection);
 
     if (!selectedIds.length) {
       toast.error("Please select at least one document.");
@@ -262,7 +260,7 @@ export default function DocumentListTab() {
     } finally {
       setDeleting(false);
     }
-  }, [rowSelection, documents, loadDocuments]);
+  }, [rowSelection, loadDocuments]);
 
   const handleDownload = useCallback(
     async (documentId: string, url: string) => {
@@ -460,6 +458,7 @@ export default function DocumentListTab() {
     onRowSelectionChange: setRowSelection,
     enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
+    getRowId: (row) => row.document_id,
   });
 
   // ------------------------------

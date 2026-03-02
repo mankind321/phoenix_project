@@ -132,9 +132,7 @@ export default function ErrorMonitoringTable({
   }, []);
 
   const handleBulkDelete = async () => {
-    const selectedIds = Object.keys(rowSelection)
-      .map((rowIndex) => data[Number(rowIndex)]?.file_id)
-      .filter(Boolean);
+    const selectedIds = Object.keys(rowSelection);
 
     if (!selectedIds.length) {
       toast.error("Please select at least one record.");
@@ -374,6 +372,7 @@ export default function ErrorMonitoringTable({
     enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getRowId: (row) => row.file_id,
   });
   /* ------------------ UI ---------------------- */
 
@@ -445,7 +444,7 @@ export default function ErrorMonitoringTable({
               </div>
             )}
           </div>
-          
+
           {/* Search Button */}
           <Button
             onClick={applySearch}

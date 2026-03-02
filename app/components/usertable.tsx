@@ -418,6 +418,7 @@ export default function UserTable() {
     enableRowSelection: true,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    getRowId: (row) => row.userid.toString(),
   });
 
   // ========================

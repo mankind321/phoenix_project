@@ -307,9 +307,7 @@ export default function ContactTable() {
   }, []);
 
   const handleBulkDelete = async () => {
-    const selectedIds = Object.keys(rowSelection)
-      .map((rowIndex) => contacts[Number(rowIndex)]?.contact_id)
-      .filter(Boolean);
+    const selectedIds = Object.keys(rowSelection);
 
     if (!selectedIds.length) {
       toast.error("Please select at least one contact.");
@@ -405,6 +403,7 @@ export default function ContactTable() {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
+    getRowId: (row) => row.contact_id, // ✅ ADD THIS
   });
 
   /* ------------------ RENDER ---------------------- */
