@@ -70,7 +70,7 @@ export async function GET(
       .select("*")
       .eq("lease_id", leaseId)
       .single();
-
+    
     if (leaseError) throw leaseError;
 
     // 4️⃣ Contacts
@@ -173,6 +173,7 @@ export async function PUT(
     assignIfPresent("pass_tmru", body.pass_tmru);
     assignIfPresent("status", body.status);
     assignIfPresent("comments", body.comments);
+    assignIfPresent("suite_unit", body.suite_unit);
 
     // USD fields
     if ("price" in body) {

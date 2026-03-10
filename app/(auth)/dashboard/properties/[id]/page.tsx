@@ -248,6 +248,7 @@ export default function PropertyViewPage({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Tenant</TableHead>
+                    <TableHead>Unit</TableHead>
                     <TableHead>Landload</TableHead>
                     <TableHead>Start Date</TableHead>
                     <TableHead>End Date</TableHead>
@@ -260,6 +261,7 @@ export default function PropertyViewPage({
                   {leases.active.map((lease) => (
                     <TableRow key={lease.lease_id}>
                       <TableCell>{lease.tenant}</TableCell>
+                      <TableCell>{lease.suite_unit}</TableCell>
                       <TableCell>{lease.landlord}</TableCell>
                       <TableCell>{lease.lease_start}</TableCell>
                       <TableCell>{lease.lease_end}</TableCell>
@@ -281,6 +283,7 @@ export default function PropertyViewPage({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Tenant</TableHead>
+                    <TableHead>Unit</TableHead>
                     <TableHead>Start Date</TableHead>
                     <TableHead>End Date</TableHead>
                     <TableHead>Annual Rent</TableHead>
@@ -293,6 +296,7 @@ export default function PropertyViewPage({
                   {leases.expired.map((lease) => (
                     <TableRow key={lease.lease_id}>
                       <TableCell>{lease.tenant}</TableCell>
+                      <TableCell>{lease.suite_unit}</TableCell>
                       <TableCell>{lease.lease_start}</TableCell>
                       <TableCell>{lease.lease_end}</TableCell>
                       <TableCell>{formatUSD(lease.annual_rent)}</TableCell>

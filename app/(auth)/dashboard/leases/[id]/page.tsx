@@ -316,6 +316,12 @@ export default function LeaseViewPage({
             editable={isEditing}
             onChange={(v) => setDraftLease({ ...draftLease, landlord: v })}
           />
+          <InfoItem
+            label="Unit"
+            value={isEditing ? draftLease.suite_unit : lease.suite_unit}
+            editable={isEditing}
+            onChange={(v) => setDraftLease({ ...draftLease, suite_unit: v })}
+          />
         </Grid2>
       </InfoSection>
 

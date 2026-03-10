@@ -118,12 +118,26 @@ export async function GET(
           .from("lease")
           .select("*")
           .eq("property_id", propertyId)
-          .eq("status", "active"),
+          .or(
+            "status.ilike.active," +
+              "status.ilike.occupied," +
+              "status.ilike.current," +
+              "status.ilike.running," +
+              "status.ilike.effective," +
+              "status.ilike.ongoing," +
+              "status.ilike.leased",
+          ),
         supabase
           .from("lease")
           .select("*")
           .eq("property_id", propertyId)
-          .eq("status", "expired"),
+          .or(
+            "status.ilike.expired," +
+              "status.ilike.terminated," +
+              "status.ilike.ended," +
+              "status.ilike.closed," +
+              "status.ilike.inactive",
+          ),
       ],
     );
 
