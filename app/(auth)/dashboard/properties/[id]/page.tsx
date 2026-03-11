@@ -166,12 +166,12 @@ export default function PropertyViewPage({
   const documentFiles = data.documentFiles;
   const contacts = data.contacts;
 
-const mapsQuery =
-  property?.address && property.address.trim() !== ""
-    ? encodeURIComponent(
-        `${property.name ?? ""} ${property.address}, ${property.city ?? ""}, ${property.state ?? ""}`
-      )
-    : `${property.latitude},${property.longitude}`;
+  const mapsQuery =
+    property.latitude && property.longitude
+      ? `${property.latitude},${property.longitude}`
+      : encodeURIComponent(
+          `${property.address}, ${property.city}, ${property.state}`,
+        );
 
   return (
     <div className="w-11/12 mx-auto mt-10 space-y-10">
@@ -277,7 +277,9 @@ const mapsQuery =
                       <TableCell>{lease.status ?? "-"}</TableCell>
                       <TableCell>{lease.lease_start ?? "-"}</TableCell>
                       <TableCell>{lease.lease_end ?? "-"}</TableCell>
-                      <TableCell>{formatUSD(lease.annual_rent) ?? "-"}</TableCell>
+                      <TableCell>
+                        {formatUSD(lease.annual_rent) ?? "-"}
+                      </TableCell>
                       <TableCell>{formatUSD(lease.price) ?? "-"}</TableCell>
                       <TableCell className="text-center">
                         <Button
@@ -287,7 +289,7 @@ const mapsQuery =
                           }
                           className="bg-blue-600 hover:bg-blue-700 text-white"
                         >
-                          <Eye size={16}/>
+                          <Eye size={16} />
                           View
                         </Button>
                       </TableCell>
@@ -327,7 +329,9 @@ const mapsQuery =
                       <TableCell>{lease.status ?? "-"}</TableCell>
                       <TableCell>{lease.lease_start ?? "-"}</TableCell>
                       <TableCell>{lease.lease_end ?? "-"}</TableCell>
-                      <TableCell>{formatUSD(lease.annual_rent) ?? "-"}</TableCell>
+                      <TableCell>
+                        {formatUSD(lease.annual_rent) ?? "-"}
+                      </TableCell>
                       <TableCell>{formatUSD(lease.price) ?? "-"}</TableCell>
                       <TableCell className="text-center">
                         <Button
@@ -337,7 +341,7 @@ const mapsQuery =
                           }
                           className="bg-blue-600 hover:bg-blue-700 text-white"
                         >
-                          <Eye size={16}/>
+                          <Eye size={16} />
                           View
                         </Button>
                       </TableCell>
