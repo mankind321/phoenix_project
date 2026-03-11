@@ -125,7 +125,8 @@ export async function GET(
               "status.ilike.running," +
               "status.ilike.effective," +
               "status.ilike.ongoing," +
-              "status.ilike.leased",
+              "status.ilike.leased," + 
+              "status.ilike.available",
           ),
         supabase
           .from("lease")

@@ -203,11 +203,11 @@ export async function POST(req: Request) {
 
       role: session.user.role || "user",
 
-      actionType: "UPLOAD_INIT",
+      actionType: "UPLOAD",
 
       tableName: "document",
 
-      description: `Upload initialized: ${normalizedFileName}`,
+      description: `Upload: ${normalizedFileName}`,
 
       ipAddress: req.headers.get("x-forwarded-for") ?? "unknown",
 

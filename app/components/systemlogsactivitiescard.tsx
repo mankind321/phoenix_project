@@ -256,6 +256,7 @@ export default function AuditTrailDashboard() {
                   <SelectItem value="all">All Actions</SelectItem>
                   <SelectItem value="CREATE">Create</SelectItem>
                   <SelectItem value="UPDATE">Update</SelectItem>
+                  <SelectItem value="UPLOAD_INIT">Upload Initialized</SelectItem>
                   <SelectItem value="UPLOAD">Upload</SelectItem>
                   <SelectItem value="DELETE">Delete</SelectItem>
                   <SelectItem value="VIEW">View</SelectItem>
