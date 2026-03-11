@@ -166,6 +166,13 @@ export default function PropertyViewPage({
   const documentFiles = data.documentFiles;
   const contacts = data.contacts;
 
+const mapsQuery =
+  property?.address && property.address.trim() !== ""
+    ? encodeURIComponent(
+        `${property.name ?? ""} ${property.address}, ${property.city ?? ""}, ${property.state ?? ""}`
+      )
+    : `${property.latitude},${property.longitude}`;
+
   return (
     <div className="w-11/12 mx-auto mt-10 space-y-10">
       {/* PAGE TITLE */}
@@ -212,7 +219,7 @@ export default function PropertyViewPage({
           <div className="space-y-1">
             <Label className="text-gray-700 font-medium">Location</Label>
             <a
-              href={`https://www.google.com/maps?q=${property.latitude},${property.longitude}`}
+              href={`https://www.google.com/maps/search/?api=1&query=${mapsQuery}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
