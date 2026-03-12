@@ -219,28 +219,28 @@ export default function ContactTable() {
           </Button>
         ),
         size: 200,
-        cell: ({ getValue }) => getValue<string>() || "-",
+        cell: ({ getValue }) => display(getValue<string>()),
       },
 
       {
         accessorKey: "listing_company",
         header: "Listing Company",
         size: 300,
-        cell: ({ getValue }) => getValue<string>() || "-",
+        cell: ({ getValue }) => display(getValue<string>()),
       },
 
       {
         accessorKey: "phone",
         header: "Phone",
         size: 150,
-        cell: ({ getValue }) => getValue<string>() || "-",
+        cell: ({ getValue }) => display(getValue<string>()),
       },
 
       {
         accessorKey: "email",
         header: "Email",
         size: 220,
-        cell: ({ getValue }) => getValue<string>() || "-",
+        cell: ({ getValue }) => display(getValue<string>()),
       },
 
       {
@@ -257,7 +257,7 @@ export default function ContactTable() {
               {row.original.website}
             </a>
           ) : (
-            <span className="text-gray-400">-</span>
+            display(null)
           ),
       },
 
@@ -268,8 +268,8 @@ export default function ContactTable() {
         accessorFn: (row) =>
           row.property_name && row.tenant
             ? `${row.property_name} / ${row.tenant}`
-            : row.property_name || row.tenant || "-",
-        cell: ({ getValue }) => getValue<string>() || "-",
+            : row.property_name || row.tenant || null,
+        cell: ({ getValue }) => display(getValue<string>()),
       },
 
       {
@@ -697,4 +697,12 @@ export default function ContactTable() {
       </Dialog>
     </div>
   );
+}
+
+function display(value?: string | null) {
+  if (!value || value.trim() === "") {
+    return <span className="text-xl">———</span>;
+  }
+
+  return value;
 }

@@ -271,16 +271,16 @@ export default function PropertyViewPage({
                 <TableBody>
                   {leases.active.map((lease) => (
                     <TableRow key={lease.lease_id}>
-                      <TableCell>{lease.tenant ?? "-"}</TableCell>
-                      <TableCell>{lease.suite_unit ?? "-"}</TableCell>
-                      <TableCell>{lease.landlord ?? "-"}</TableCell>
-                      <TableCell>{lease.status ?? "-"}</TableCell>
-                      <TableCell>{lease.lease_start ?? "-"}</TableCell>
-                      <TableCell>{lease.lease_end ?? "-"}</TableCell>
+                      <TableCell>{display(lease.tenant)}</TableCell>
+                      <TableCell>{display(lease.suite_unit)}</TableCell>
+                      <TableCell>{display(lease.landlord)}</TableCell>
+                      <TableCell>{display(lease.status)}</TableCell>
+                      <TableCell>{display(lease.lease_start)}</TableCell>
+                      <TableCell>{display(lease.lease_end)}</TableCell>
                       <TableCell>
-                        {formatUSD(lease.annual_rent) ?? "-"}
+                        {display(formatUSD(lease.annual_rent))}
                       </TableCell>
-                      <TableCell>{formatUSD(lease.price) ?? "-"}</TableCell>
+                      <TableCell>{display(formatUSD(lease.price))}</TableCell>
                       <TableCell className="text-center">
                         <Button
                           size="sm"
@@ -323,16 +323,16 @@ export default function PropertyViewPage({
                 <TableBody>
                   {leases.expired.map((lease) => (
                     <TableRow key={lease.lease_id}>
-                      <TableCell>{lease.tenant ?? "-"}</TableCell>
-                      <TableCell>{lease.suite_unit ?? "-"}</TableCell>
-                      <TableCell>{lease.landlord ?? "-"}</TableCell>
-                      <TableCell>{lease.status ?? "-"}</TableCell>
-                      <TableCell>{lease.lease_start ?? "-"}</TableCell>
-                      <TableCell>{lease.lease_end ?? "-"}</TableCell>
+                      <TableCell>{display(lease.tenant)}</TableCell>
+                      <TableCell>{display(lease.suite_unit)}</TableCell>
+                      <TableCell>{display(lease.landlord)}</TableCell>
+                      <TableCell>{display(lease.status)}</TableCell>
+                      <TableCell>{display(lease.lease_start)}</TableCell>
+                      <TableCell>{display(lease.lease_end)}</TableCell>
                       <TableCell>
-                        {formatUSD(lease.annual_rent) ?? "-"}
+                        {display(formatUSD(lease.annual_rent))}
                       </TableCell>
-                      <TableCell>{formatUSD(lease.price) ?? "-"}</TableCell>
+                      <TableCell>{display(formatUSD(lease.price))}</TableCell>
                       <TableCell className="text-center">
                         <Button
                           size="sm"
@@ -377,13 +377,13 @@ export default function PropertyViewPage({
             <TableBody>
               {contacts.map((c: any) => (
                 <TableRow key={c.contact_assignment_id}>
-                  <TableCell>{c.relationship || "—"}</TableCell>
-                  <TableCell>{c.listing_company || "—"}</TableCell>
-                  <TableCell>{c.broker_name || "—"}</TableCell>
-                  <TableCell>{c.phone || "—"}</TableCell>
-                  <TableCell>{c.email || "—"}</TableCell>
-                  <TableCell>{c.website || "—"}</TableCell>
-                  <TableCell>{c.comments || "—"}</TableCell>
+                  <TableCell>{display(c.relationship)}</TableCell>
+                  <TableCell>{display(c.listing_company)}</TableCell>
+                  <TableCell>{display(c.broker_name)}</TableCell>
+                  <TableCell>{display(c.phone)}</TableCell>
+                  <TableCell>{display(c.email)}</TableCell>
+                  <TableCell>{display(c.website)}</TableCell>
+                  <TableCell>{display(c.comments)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -482,4 +482,8 @@ function formatUSD(value: any) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+function display(value?: string) {
+  return value ? value : <span className="text-xl">———</span>;
 }
