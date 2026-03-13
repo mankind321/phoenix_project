@@ -272,7 +272,7 @@ export default function LeaseListPage() {
           <p>Manage broker contacts.</p>
 
           <p className="text-md text-gray-400 mt-1">
-            Total Contacts:{" "}
+            Total Tenants:{" "}
             {isLoading ? (
               <span className="text-gray-400 animate-pulse">Loading...</span>
             ) : (
