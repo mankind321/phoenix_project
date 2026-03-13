@@ -108,6 +108,10 @@ export default function UserTable() {
   const [bulkDeleting, setBulkDeleting] = React.useState(false);
   const [bulkLoggingOut, setBulkLoggingOut] = React.useState(false);
 
+  const [totalUserCount, setTotalUserCount] = React.useState<number | null>(
+    null,
+  );
+
   const searchWrapperRef = useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -133,6 +137,23 @@ export default function UserTable() {
 
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  React.useEffect(() => {
+    if (status !== "authenticated") return;
+
+    const fetchUserCount = async () => {
+      try {
+        const res = await fetch("/api/users/count");
+        const json = await res.json();
+
+        setTotalUserCount(json.total ?? 0);
+      } catch (err) {
+        console.error("Failed to load user count:", err);
+      }
+    };
+
+    fetchUserCount();
+  }, [status]);
 
   const saveRecentSearch = (value: string) => {
     if (!value || !userId) return;
@@ -442,9 +463,20 @@ export default function UserTable() {
             <h2 className="text-xl font-semibold text-gray-800">User List</h2>
           </div>
 
-          <p className="text-sm text-gray-500 whitespace-nowrap">
-            Manage and view all registered users.
-          </p>
+          <div className="text-md text-gray-500 whitespace-nowrap">
+            <p>Manage and view all registered users.</p>
+
+            <p className="text-md text-gray-400 mt-1">
+              Total Users:{" "}
+              {isLoading ? (
+                <span className="text-gray-400 animate-pulse">Loading...</span>
+              ) : (
+                <span className="font-semibold text-blue-700">
+                  {totalUserCount}
+                </span>
+              )}
+            </p>
+          </div>
         </div>
 
         <div

@@ -106,6 +106,8 @@ export default function ContactTable() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
   const [bulkDeleting, setBulkDeleting] = React.useState(false);
 
+  const [totalCount, setTotalCount] = React.useState<number | null>(null);
+
   const searchWrapperRef = React.useRef<HTMLDivElement>(null);
 
   const userId = React.useMemo(() => {
@@ -145,6 +147,23 @@ export default function ContactTable() {
     },
     [page, globalFilter],
   );
+
+  React.useEffect(() => {
+    if (status !== "authenticated") return;
+
+    const fetchTotalCount = async () => {
+      try {
+        const res = await fetch("/api/contacts/count");
+        const json = await res.json();
+
+        setTotalCount(json.total ?? 0);
+      } catch (err) {
+        console.error("Failed to load contact count:", err);
+      }
+    };
+
+    fetchTotalCount();
+  }, [status]);
 
   React.useEffect(() => {
     if (status !== "authenticated") return;
@@ -439,9 +458,20 @@ export default function ContactTable() {
             </h2>
           </div>
 
-          <p className="text-sm text-gray-500 whitespace-nowrap">
-            Manage broker contacts.
-          </p>
+          <div className="text-md text-gray-500 whitespace-nowrap">
+            <p>Manage broker contacts.</p>
+
+            <p className="text-md text-gray-400 mt-1">
+              Total Contacts:{" "}
+              {isLoading ? (
+                <span className="text-gray-400 animate-pulse">Loading...</span>
+              ) : (
+                <span className="font-semibold text-blue-700">
+                  {totalCount}
+                </span>
+              )}
+            </p>
+          </div>
         </div>
 
         {/* RIGHT : Search + Actions */}

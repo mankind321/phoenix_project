@@ -268,16 +268,18 @@ export default function LeaseListPage() {
             Tenant Directory
           </h2>
         </div>
-        <h3 className="text-gray-600 mt-1">
-          Total Tenants:{" "}
-          <span className="font-semibold text-blue-600">
-            {isLoading ? "Loading..." : totalCount.toLocaleString()}
-          </span>
-        </h3>
+        <div className="text-md text-gray-500 whitespace-nowrap">
+          <p>Manage broker contacts.</p>
 
-        <p className="text-sm text-gray-500 mb-4">
-          Search tenant, property, landlord, or comments.
-        </p>
+          <p className="text-md text-gray-400 mt-1">
+            Total Contacts:{" "}
+            {isLoading ? (
+              <span className="text-gray-400 animate-pulse">Loading...</span>
+            ) : (
+              <span className="font-semibold text-blue-700">{totalCount}</span>
+            )}
+          </p>
+        </div>
 
         <div
           ref={searchWrapperRef}

@@ -63,6 +63,35 @@ export default function PropertyViewPage({
 
   const [downloadingBrochure, setDownloadingBrochure] = useState(false);
 
+  const [leaseCounts, setLeaseCounts] = useState({
+    active: 0,
+    expired: 0,
+  });
+
+  useEffect(() => {
+    if (!propertyId) return;
+
+    const fetchLeaseCounts = async () => {
+      try {
+        const res = await fetch(
+          `/api/lease/count-status?property_id=${propertyId}`,
+        );
+        const json = await res.json();
+
+        if (json.success) {
+          setLeaseCounts({
+            active: json.data.active ?? 0,
+            expired: json.data.expired ?? 0,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load lease counts:", err);
+      }
+    };
+
+    fetchLeaseCounts();
+  }, [propertyId]);
+
   useEffect(() => {
     if (!propertyId) return;
 
@@ -244,8 +273,19 @@ export default function PropertyViewPage({
       <InfoSection icon={<Users />} title="Tenant">
         <Tabs defaultValue="active" className="w-full">
           <TabsList className="mb-4">
-            <TabsTrigger value="active">Leases</TabsTrigger>
-            <TabsTrigger value="expired">Expired Leases</TabsTrigger>
+            <TabsTrigger value="active" className="flex items-center">
+              Leases
+              {leaseCounts.active > 0 && (
+                <BadgeCount value={leaseCounts.active} />
+              )}
+            </TabsTrigger>
+
+            <TabsTrigger value="expired" className="flex items-center">
+              Expired Leases
+              {leaseCounts.expired > 0 && (
+                <BadgeCount value={leaseCounts.expired} variant="red" />
+              )}
+            </TabsTrigger>
           </TabsList>
 
           {/* ACTIVE */}
@@ -486,4 +526,25 @@ function formatUSD(value: any) {
 
 function display(value?: string) {
   return value ? value : <span className="text-xl">———</span>;
+}
+
+function BadgeCount({
+  value,
+  variant = "blue",
+}: {
+  value: number;
+  variant?: "blue" | "red";
+}) {
+  if (!value) return null;
+
+  const styles =
+    variant === "red" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700";
+
+  return (
+    <span
+      className={`ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full ${styles}`}
+    >
+      {value}
+    </span>
+  );
 }
