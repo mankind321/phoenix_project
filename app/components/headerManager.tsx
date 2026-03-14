@@ -43,18 +43,30 @@ export const TopHeaderManager: React.FC = () => {
   const [reviewCount, setReviewCount] = React.useState(0);
 
   const fetchReviewCount = React.useCallback(async () => {
-    try {
-      const res = await fetch("/api/review/count");
+    const maxAttempts = 5;
 
-      if (!res.ok) throw new Error("Failed to fetch review count");
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const res = await fetch("/api/review/count");
 
-      const json = await res.json();
+        if (!res.ok) throw new Error("Failed to fetch review count");
 
-      setReviewCount(json.total ?? 0);
-    } catch (err) {
-      console.error("Review count fetch error:", err);
+        const json = await res.json();
+        const newTotal = json.total ?? 0;
+
+        // only update when value changes
+        if (newTotal !== reviewCount) {
+          setReviewCount(newTotal);
+          return;
+        }
+      } catch (err) {
+        console.error("Review count fetch error:", err);
+      }
+
+      // wait before retry
+      await new Promise((resolve) => setTimeout(resolve, 300));
     }
-  }, []);
+  }, [reviewCount]);
 
   React.useEffect(() => {
     fetchReviewCount();

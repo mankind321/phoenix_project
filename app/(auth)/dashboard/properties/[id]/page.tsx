@@ -538,7 +538,7 @@ function BadgeCount({
   if (!value) return null;
 
   const styles =
-    variant === "red" ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700";
+    variant === "red" ? "bg-red-700 text-white" : "bg-blue-700 text-white";
 
   return (
     <span

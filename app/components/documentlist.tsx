@@ -292,7 +292,13 @@ export default function DocumentListTab() {
         }
 
         // Step 2: Download if exists
-        window.location.href = downloadUrl;
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.target = "_blank";
+        link.rel = "noopener";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
 
         toast.success("Download started");
       } catch (error) {
